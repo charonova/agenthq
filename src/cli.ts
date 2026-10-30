@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawn } from 'node:child_process'
 import { claudeHome, discoverOffices, ignoreFrom, looksLikeClaudeHome } from './core/office.js'
 import type { Agent, Office } from './core/types.js'
 
@@ -9,8 +10,13 @@ if (args.includes('--help') || args.includes('-h')) {
   console.log(`AgentHQ: a pixel-art office for your Claude Code sessions.
 
 Usage:
+  agenthq           open the office in your browser (http://localhost:4747)
   agenthq --list    print every live session as an office: manager, staff, interns
   agenthq --json    the same, as JSON
+
+Options:
+  --port <n>        serve on another port (the next free one if it's taken)
+  --no-open         don't open the browser
 
 Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Never writes to it.
 Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.`)
@@ -59,6 +65,34 @@ function ago(time: number): string {
   return `${Math.round(seconds / 3600)}h ago`
 }
 
-const offices = discoverOffices({ home, ignore: ignoreFrom() })
-if (args.includes('--json')) console.log(JSON.stringify(offices, null, 2))
-else printOffices(offices)
+if (args.includes('--list') || args.includes('--json')) {
+  const offices = discoverOffices({ home, ignore: ignoreFrom() })
+  if (args.includes('--json')) console.log(JSON.stringify(offices, null, 2))
+  else printOffices(offices)
+} else {
+  const { startServer } = await import('./server.js')
+  const portArg = args.indexOf('--port')
+  const port = portArg >= 0 ? Number(args[portArg + 1]) : 4747
+  const server = await startServer({ home, port: Number.isFinite(port) ? port : 4747, ignore: ignoreFrom() })
+  console.log(`🏢 AgentHQ is open at ${server.url}  (Ctrl+C to close)`)
+  if (!args.includes('--no-open')) openBrowser(server.url)
+  const stop = () => {
+    server.close()
+    process.exit(0)
+  }
+  process.on('SIGINT', stop)
+  process.on('SIGTERM', stop)
+}
+
+/** The system's own way to open a link: open (macOS), start (Windows), xdg-open (Linux). */
+function openBrowser(url: string): void {
+  const [command, ...rest] =
+    process.platform === 'darwin' ? ['open', url]
+    : process.platform === 'win32' ? ['cmd', '/c', 'start', '', url]
+    : ['xdg-open', url]
+  try {
+    spawn(command!, rest, { stdio: 'ignore', detached: true }).on('error', () => {}).unref()
+  } catch {
+    // No browser to open: the link above is enough.
+  }
+}

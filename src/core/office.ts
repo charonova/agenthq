@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { stateOf } from './state.js'
 import { readHeadLines, readTail, readTailLines } from './tail.js'
-import type { Agent, Office, Role, Tail } from './types.js'
+import type { Activity, Agent, Office, Role, Tail } from './types.js'
 
 /** Claude Code's folder: `AGENTHQ_CLAUDE_HOME`, then `CLAUDE_CONFIG_DIR`, then `~/.claude`. */
 export function claudeHome(env: NodeJS.ProcessEnv = process.env): string {
@@ -73,13 +73,79 @@ function projectFromFolder(folder: string): string {
   return folder.split('-').filter(Boolean).pop() ?? folder
 }
 
+/** Tails by file, kept until the file changes: the office rescans every couple of seconds. */
+const tails = new Map<string, { size: number; modified: number; tail: Tail }>()
+
 function tailOf(path: string, withHead = false): Tail {
-  const lines = readTailLines(path)
+  let size = 0
+  let modified = 0
+  try {
+    const stat = statSync(path)
+    size = stat.size
+    modified = stat.mtimeMs
+  } catch {
+    // Gone between the listing and now: read nothing.
+  }
+  const key = path + (withHead ? '#head' : '')
+  const cached = tails.get(key)
+  if (cached && cached.size === size && cached.modified === modified) return cached.tail
+  const tail = readTailOf(path, withHead)
+  tails.set(key, { size, modified, tail })
+  if (tails.size > 5000) tails.delete(tails.keys().next().value!)
+  return tail
+}
+
+function readTailOf(path: string, withHead: boolean): Tail {
+  let lines: string[]
+  try {
+    lines = readTailLines(path)
+  } catch {
+    return readTail([])
+  }
   if (!withHead) return readTail(lines)
   // The title and working folder are near the top; the tail has everything newer.
   const head = readTail(readHeadLines(path))
   const tail = readTail(lines)
   return { ...tail, title: tail.title ?? head.title, cwd: tail.cwd ?? head.cwd, permissionMode: tail.permissionMode ?? head.permissionMode }
+}
+
+interface Candidate {
+  folder: string
+  sessionId: string
+  sessionPath: string
+  subagentsDir: string
+}
+
+/**
+ * Sessions touched in the last day. Claude Code keeps every session it ever ran (thousands), so
+ * the full listing is redone only every 30 seconds; in between, only these are looked at.
+ */
+const candidateCache = new Map<string, { at: number; list: Candidate[] }>()
+
+function candidates(home: string, now: number): Candidate[] {
+  const cached = candidateCache.get(home)
+  if (cached && now - cached.at < 30_000 && now >= cached.at) return cached.list
+  const projects = join(home, 'projects')
+  const found: Candidate[] = []
+  for (const folder of list(projects)) {
+    const projectDir = join(projects, folder)
+    for (const file of list(projectDir)) {
+      if (!file.endsWith('.jsonl')) continue
+      const sessionId = file.slice(0, -'.jsonl'.length)
+      const sessionPath = join(projectDir, file)
+      const subagentsDir = join(projectDir, sessionId, 'subagents')
+      // A team keeps working in its subagents' files while the lead's own file sits still.
+      if (now - Math.max(mtime(sessionPath), mtime(subagentsDir)) > 24 * 60 * 60_000 && !recentlyWritten(subagentsDir, now)) continue
+      found.push({ folder, sessionId, sessionPath, subagentsDir })
+    }
+  }
+  candidateCache.set(home, { at: now, list: found })
+  return found
+}
+
+/** Whether any subagent of an old-looking session wrote in the last day (only for sessions that have subagents). */
+function recentlyWritten(subagentsDir: string, now: number): boolean {
+  return list(subagentsDir).some((name) => now - mtime(join(subagentsDir, name)) < 24 * 60 * 60_000)
 }
 
 /** Every live Claude Code session, as an office: its manager, its staff and their interns. */
@@ -89,24 +155,17 @@ export function discoverOffices(options: DiscoverOptions = {}): Office[] {
   const liveFor = options.liveFor ?? 30 * 60_000
   const deskFor = options.deskFor ?? 3 * 60 * 60_000
   const ignore = options.ignore ?? defaultIgnore
-  const projects = join(home, 'projects')
   const offices: Office[] = []
 
-  for (const folder of list(projects)) {
-    const projectDir = join(projects, folder)
-    for (const file of list(projectDir)) {
-      if (!file.endsWith('.jsonl')) continue
-      const sessionId = file.slice(0, -'.jsonl'.length)
-      const sessionPath = join(projectDir, file)
-      const subagentsDir = join(projectDir, sessionId, 'subagents')
-      const subagentFiles = list(subagentsDir).filter((name) => name.endsWith('.jsonl'))
-      const newest = Math.max(mtime(sessionPath), ...subagentFiles.map((name) => mtime(join(subagentsDir, name))))
-      if (now - newest > liveFor) continue
-      const office = buildOffice({ sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor })
-      const where = office.cwd ?? join(projects, folder)
-      if (ignore.some((fragment) => where.includes(fragment) || folder.includes(fragment.replace(/\//g, '-')))) continue
-      offices.push(office)
-    }
+  for (const candidate of candidates(home, now)) {
+    const { folder, sessionId, sessionPath, subagentsDir } = candidate
+    const subagentFiles = list(subagentsDir).filter((name) => name.endsWith('.jsonl'))
+    const newest = Math.max(mtime(sessionPath), ...subagentFiles.map((name) => mtime(join(subagentsDir, name))))
+    if (now - newest > liveFor) continue
+    const office = buildOffice({ sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor })
+    const where = office.cwd ?? join(home, 'projects', folder)
+    if (ignore.some((fragment) => where.includes(fragment) || folder.includes(fragment.replace(/\//g, '-')))) continue
+    offices.push(office)
   }
   return offices.sort((a, b) => b.updatedAt - a.updatedAt)
 }
@@ -135,6 +194,7 @@ function buildOffice(input: BuildInput): Office {
     task: leadTail.title,
     model: leadTail.model,
     ...stateOf({ tail: leadTail, modified, now }),
+    activity: null,
     tool: leadTail.tool,
     lastText: leadTail.lastText,
     contextTokens: leadTail.contextTokens,
@@ -166,17 +226,20 @@ function buildOffice(input: BuildInput): Office {
       task: meta.description ?? null,
       model: meta.model ?? tail.model,
       ...stateOf({ tail, modified: updated, now, permissionMode: meta.permissionMode }),
+      activity: null,
       tool: tail.tool,
       lastText: tail.lastText,
       contextTokens: tail.contextTokens,
       updatedAt: updated,
     }
+    agent.activity = activityOf(agent.state, tail)
     ;(role === 'staff' ? staff : interns).push(agent)
   }
   staff.sort((a, b) => a.name.localeCompare(b.name))
   if (manager.state === 'idle' && [...staff, ...interns].some((agent) => agent.state === 'working')) manager.rest = 'watching'
   interns.sort((a, b) => b.updatedAt - a.updatedAt)
 
+  manager.activity = activityOf(manager.state, leadTail)
   const cwd = leadTail.cwd
   return {
     sessionId,
@@ -189,6 +252,12 @@ function buildOffice(input: BuildInput): Office {
     wentHome,
     updatedAt: Math.max(modified, ...staff.map((a) => a.updatedAt), ...interns.map((a) => a.updatedAt)),
   }
+}
+
+/** While working: the tool it's waiting on, or thinking once that tool answered. */
+function activityOf(state: Agent['state'], tail: Tail): Activity | null {
+  if (state !== 'working' && state !== 'waiting') return null
+  return tail.step === 'calledTool' && tail.tool ? tail.tool.activity : 'thinking'
 }
 
 /** Whether a folder looks like Claude Code's. */

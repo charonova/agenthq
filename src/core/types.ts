@@ -57,6 +57,9 @@ export interface Agent {
   model: string | null
   state: State
   rest: Rest
+  /** What it's doing right now while working: the tool it's waiting on, or thinking. */
+  activity: Activity | null
+  /** The last tool it called (may have finished). */
   tool: Tool | null
   lastText: string | null
   contextTokens: number | null

@@ -15,9 +15,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/build-web.mjs",
     "test": "vitest run",
-    "list": "npm run build --silent && node dist/cli.js --list"
+    "list": "npm run build --silent && node dist/cli.js --list",
+    "start": "npm run build --silent && node dist/cli.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json"
   },
   "keywords": [
     "claude-code",
@@ -33,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "esbuild": "^0.25.12",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

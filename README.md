@@ -2,11 +2,14 @@
 
 **A pixel-art office for your Claude Code sessions.** Every live session is an office. Its main agent is the manager, every teammate gets a desk, and the helpers they start sit beside them as interns. Working agents type; idle ones get coffee, then nap on the couch.
 
-> Status: early. The reader works (`agenthq --list`); the office itself is next.
+> Status: early (0.1). The office and the building work; walking between rooms, conversations and sounds come next.
 
 ```bash
-npx @charonova/agenthq --list
+npx @charonova/agenthq          # opens the office at http://localhost:4747
+npx @charonova/agenthq --list   # or print it in the terminal
 ```
+
+**In the office:** the manager sits in the glass office; staff at desks with their team colour on their shirts; interns on stools beside whoever started them. Writing code → typing at the desk; reading → the bookshelf; commands → the server rack; tests → the lab bench; web → the window; messages → the meeting table; plans → the whiteboard; waiting for you → a raised hand; idle → coffee, then the couch. Click anyone to see their task, tool, model, context and last words.
 
 ```
 🏢 shop · Add CSV export  (2 working)
@@ -38,6 +41,7 @@ Settings: `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag
 ```bash
 npm install
 npm test          # vitest, with made-up transcripts shaped like real ones
+npm start         # build, then open the office
 npm run list      # build, then list your live offices
 ```
 
