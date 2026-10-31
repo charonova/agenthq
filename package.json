@@ -1,42 +1,36 @@
 {
-  "name": "@charonova/agenthq",
-  "version": "0.1.0",
-  "description": "A pixel-art office for your Claude Code sessions: every session an office, the main agent its manager, every subagent at a desk.",
+  "name": "agenthq-workspace",
+  "private": true,
   "type": "module",
-  "license": "MIT",
-  "author": "charonova",
-  "bin": {
-    "agenthq": "dist/cli.js"
-  },
-  "files": [
-    "dist"
-  ],
+  "packageManager": "pnpm@12.11.2",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/build-web.mjs",
+    "dev": "concurrently -k -n server,web -c blue,magenta \"pnpm --filter @charonova/agenthq dev\" \"pnpm --filter @agenthq/web dev\"",
+    "build": "pnpm --filter @agenthq/web build && pnpm --filter @charonova/agenthq build",
+    "start": "pnpm build && node packages/cli/dist/cli.js",
     "test": "vitest run",
-    "list": "npm run build --silent && node dist/cli.js --list",
-    "start": "npm run build --silent && node dist/cli.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.web.json"
-  },
-  "keywords": [
-    "claude-code",
-    "agents",
-    "subagents",
-    "office",
-    "pixel-art",
-    "visualization"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/charonova/agenthq.git"
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
+    "e2e": "playwright test"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.20.5",
-    "esbuild": "^0.25.12",
+    "concurrently": "^10.0.6",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^3.2.7"
   }
 }

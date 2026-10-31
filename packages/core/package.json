@@ -1,0 +1,14 @@
+{
+  "name": "@agenthq/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reads live Claude Code sessions from ~/.claude and turns them into offices: manager, staff, interns, and what each is doing.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "@charonova/agenthq",
+  "version": "0.1.0",
+  "description": "A pixel-art office for your Claude Code sessions: every session an office, the main agent its manager, every subagent at a desk.",
+  "type": "module",
+  "license": "MIT",
+  "author": "charonova",
+  "bin": {
+    "agenthq": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "claude-code",
+    "agents",
+    "subagents",
+    "office",
+    "pixel-art",
+    "visualization"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/charonova/agenthq.git",
+    "directory": "packages/cli"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts --no-open",
+    "build": "tsup && node scripts/copy-web.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@agenthq/core": "workspace:*",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15"
+  }
+}

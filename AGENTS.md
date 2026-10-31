@@ -1,28 +1,40 @@
 # AGENTS.md
 
-AgentHQ turns live Claude Code sessions into a 2D pixel-art office: one office per session, the session's agent as manager, teammates as staff, their helpers as interns. Browser-based and cross-platform: a Node CLI reads `~/.claude` and serves the office to a local page (`npm start`).
+AgentHQ turns live Claude Code sessions into a 2D pixel-art office: one office per session, the session's agent as manager, teammates as staff, their helpers as interns. A Node CLI reads `~/.claude` and serves a local page; the page draws the building with PixiJS.
 
 ## Layout
 
-| Path | Responsibility |
-|---|---|
-| `src/core/tail.ts` | Reading the end of a transcript (never the whole file) and what its last lines say: step, tool, title, context |
-| `src/core/state.ts` | Turning that into what the office shows: working, waiting, done, idle (coffee, couch), gone |
-| `src/core/office.ts` | Finding live sessions and building offices: manager, staff, interns |
-| `src/server.ts` | The local server: the page, `/api/offices`, and `/events` (Server-Sent Events, sent only when something changed; rescans every 2 s and on file changes). Loopback only |
-| `src/cli.ts` | `agenthq` (opens the office), `--list` / `--json`, `--port`, `--no-open` |
-| `web/art.ts` | Pixel art drawn in code: people (a look per name: skin, hair, team-coloured shirt) and furniture |
-| `web/room.ts` | One office: the floor plan, where each agent goes for what it's doing, walking, bubbles, clicks |
-| `web/main.ts` | The page: the building (a live miniature per office) and one office with its people listed |
-| `test/` | Vitest suites with made-up lines shaped like real transcripts |
+| Path                                | Responsibility                                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/tail.ts`         | Reading the end of a transcript (never the whole file) and what its last lines say: step, tool, title, context                                    |
+| `packages/core/src/state.ts`        | Turning that into what the office shows: working, waiting, done, idle (coffee, couch), gone                                                       |
+| `packages/core/src/office.ts`       | Finding live sessions (from a list of recently used ones, redone every 30 s) and building offices: manager, staff, interns                        |
+| `packages/cli/src/server.ts`        | The local server: the page, `/api/offices`, `/events` (Server-Sent Events, only on change; rescans every 2 s and on file changes). 127.0.0.1 only |
+| `packages/cli/src/cli.ts`           | `agenthq` (opens the office), `--list` / `--json`, `--port`, `--no-open`                                                                          |
+| `apps/web/src/scene/layout.ts`      | The floor plan in tiles, and which tiles furniture blocks                                                                                         |
+| `apps/web/src/scene/path.ts`        | A* on the floor plan, so people walk around furniture                                                                                             |
+| `apps/web/src/scene/plan.ts`        | Who goes where for what they're doing, and what their bubble says (pure: tested)                                                                  |
+| `apps/web/src/scene/art/`           | Pixel art drawn in code: `people` (a look per name), `furniture`, `paint`                                                                         |
+| `apps/web/src/scene/textures.ts`    | Art drawn once into cached textures (a person's look × pose × frame)                                                                              |
+| `apps/web/src/scene/OfficeScene.ts` | One office in PixiJS: layers, depth sorting, walking, bubbles, name tags, night                                                                   |
+| `apps/web/src/scene/World.ts`       | The PixiJS app and camera (pixi-viewport): offices on one map, zooming into one, clicks                                                           |
+| `apps/web/src/state/`               | Zustand store; the event stream (`?once` loads once); the `#/office/<id>` route                                                                   |
+| `apps/web/src/ui/`                  | React: header, the canvas host, the side panel                                                                                                    |
+| `e2e/`                              | Playwright on a made-up `~/.claude` (`fixture-home.mjs`), served by `serve.mjs`                                                                   |
+
+## Commands
+
+`pnpm dev` (server + Vite, hot reload) · `pnpm check` (lint, format, types, tests) · `pnpm build` · `pnpm e2e` (after a build) · `pnpm start`.
 
 ## Rules
 
 - **Read only.** Never write to `~/.claude`, never run Claude Code, never send anything off the machine.
-- **Never read a whole transcript.** They reach gigabytes: read the last ~96 KB (and the first ~32 KB for the title).
-- **The format isn't documented.** Parse defensively: unknown line types are skipped, missing fields are null. Every new field the reader relies on gets a test with a line shaped like the real one (compact JSON, no space after `:`).
-- **Staff and interns come from `.meta.json`**: `spawnDepth: 0` / `taskKind: in_process_teammate` is a teammate (with `name`, `color`, `model`, `permissionMode`); deeper ones are helpers with `parentAgentId` and `finished`.
-- **Tests never use real transcripts or real names**; describe real data only by its shape.
-- **The server listens on 127.0.0.1 only**: transcripts are private. Text from transcripts reaches the page as text (`textContent`, canvas `fillText`), never as HTML.
-- **Idle costs little**: the page draws ~20 frames a second, only canvases on screen, nothing in a hidden tab. The server rescans live sessions from a list of recently used ones (redone every 30 s): `~/.claude/projects` holds thousands of sessions.
-- Screenshots: `?once` loads the offices once instead of streaming (headless Chrome never finishes a page that's streaming).
+- **Never read a whole transcript.** They reach gigabytes: read the last ~96 KB (and the first ~32 KB for the title). Rescans reuse tails until a file changes.
+- **The format isn't documented.** Parse defensively: unknown line types are skipped, missing fields are null. Every field the reader relies on gets a test with a line shaped like the real one (compact JSON, no space after `:`).
+- **Staff and interns come from `.meta.json`**: `spawnDepth: 0` / `taskKind: in_process_teammate` is a teammate (`name`, `color`, `model`, `permissionMode`); deeper ones are helpers with `parentAgentId` and `finished`. Helpers work in the permission mode of whoever started them.
+- **Tests and screenshots never use real transcripts or names.** Use made-up data shaped like the real thing (`e2e/fixture-home.mjs`).
+- **The server listens on 127.0.0.1 only.** Text from transcripts reaches the page as text (React children, Pixi `Text`), never as HTML.
+- **Idle costs little.** The scene runs at 30 fps at most and stops in a hidden tab; art is drawn once into textures, and each frame only swaps them.
+- **Pure logic stays out of PixiJS.** Layout, paths and plans are plain functions with tests; the scene only draws what they decide.
+- **Pixi classes extend `Container`**: don't reuse its member names (`label`, `height`, `width`…).
+- pnpm blocks dependencies' install scripts; only `esbuild` is allowed (`pnpm-workspace.yaml`).
