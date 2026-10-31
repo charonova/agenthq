@@ -173,3 +173,39 @@ test('settings: day and night, motion, hidden offices and someone’s look, kept
   await page.goto('/')
   await expect(page.locator('.office-row', { hasText: 'blog' })).toBeVisible()
 })
+
+test('the keyboard alone: Tab and Enter into an office, a person and their conversation; Esc back out', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('.office-row', { hasText: 'shop' })).toBeVisible()
+  await page.locator('.office-row', { hasText: 'shop' }).focus()
+  await page.keyboard.press('Enter')
+  // In the office, the keyboard is on its people.
+  await expect(page.locator('.office-head')).toContainText('shop')
+  await expect(page.locator('.person').first()).toBeFocused()
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.details')).toBeVisible()
+  const selected = await page.locator('.person[aria-pressed="true"]').getAttribute('data-agent')
+  await page.locator('.chat-open').focus()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.chat')).toBeVisible()
+  await expect(page.locator('.chat-search input')).toBeFocused()
+  await page.screenshot({ path: 'test-results/keyboard.png' })
+
+  // Esc steps back: the conversation, the person, the office.
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.chat')).toHaveCount(0)
+  await expect(page.locator(`.person[data-agent="${selected}"]`)).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.details')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.office-row', { hasText: 'shop' })).toBeFocused()
+
+  // The settings too.
+  await page.locator('.gear').focus()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('.settings')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.settings')).toHaveCount(0)
+  await expect(page.locator('.gear')).toBeFocused()
+})

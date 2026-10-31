@@ -133,13 +133,11 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
     }
   }, [loaded, query, draft?.text])
 
+  // Opening a conversation takes the keyboard there: its message box, or its search (Esc closes it: useKeyboard).
+  const panel = useRef<HTMLElement>(null)
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [close])
+    panel.current?.querySelector<HTMLElement>('.composer textarea, .chat-search input')?.focus()
+  }, [])
 
   const onScroll = () => {
     const element = list.current!
@@ -153,7 +151,7 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
   const name = nameOf(agent, office)
 
   return (
-    <section className="chat" aria-label={`Conversation with ${name}`}>
+    <section className="chat" aria-label={`Conversation with ${name}`} ref={panel}>
       <header className="chat-head">
         <span className="emoji">{stateEmoji(agent)}</span>
         <div className="title">

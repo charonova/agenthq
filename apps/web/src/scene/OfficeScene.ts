@@ -3,9 +3,10 @@ import { Container, Graphics, Sprite, Text, type TextStyleOptions } from 'pixi.j
 import { lookKeyOf } from '../state/view'
 import { lookFor, type Look, type LookChoice, type Pose } from './art/people'
 import { MANAGER_DESK, T, W, blockedTiles, deskOf, door, props, roomHeight, seatAt, type Point } from './layout'
+import { SEATED, SIT_DROP, doorOpen, stepSeat } from './motion'
 import { findPath } from './path'
 import { planOffice, type Spot } from './plan'
-import { PERSON, animatedProps, deskTexture, meetingTableTexture, personTexture, roomTexture } from './textures'
+import { PERSON, animatedProps, deskTexture, doorTexture, meetingTableTexture, personTexture, roomTexture } from './textures'
 
 const WALK_SPEED = 42 // art pixels per second
 
@@ -22,6 +23,10 @@ interface Person {
   spot: Spot
   path: Point[]
   leaving: boolean
+  /** 0 standing … 1 seated: people sit down and get up instead of snapping. */
+  seat: number
+  /** What was last drawn, so a frame where nothing changed draws nothing new. */
+  drawn: string
 }
 
 /** A speech bubble: a rounded box with a tail, and its text. */
@@ -73,6 +78,8 @@ export class OfficeScene extends Container {
   /** Its height, in tiles. */
   private tiles: number
   private room = new Sprite()
+  private door = new Sprite(doorTexture(false))
+  private doorIsOpen = false
   private propSprites = {
     window: new Sprite(),
     rack: new Sprite(),
@@ -114,6 +121,7 @@ export class OfficeScene extends Container {
     this.depth.addChild(table)
     this.addChild(
       this.room,
+      this.door,
       p.window,
       p.rack,
       p.lab,
@@ -138,6 +146,7 @@ export class OfficeScene extends Container {
     if (height !== this.tiles || firstLook) {
       this.tiles = height
       this.room.texture = roomTexture(height)
+      this.door.position.set(7 * T, height * T - 16)
     }
     this.grid = blockedTiles(office)
     this.layoutDesks(office)
@@ -147,7 +156,10 @@ export class OfficeScene extends Container {
     const agents = new Map([office.manager, ...office.staff, ...office.interns].map((agent) => [agent.id, agent]))
     for (const [id, plan] of plans) {
       const agent = agents.get(id)!
-      const person = this.people.get(id) ?? this.addPerson(agent, firstLook ? plan.spot : door(this.tiles))
+      const known = this.people.get(id)
+      const person = known ?? this.addPerson(agent, firstLook ? plan.spot : door(this.tiles))
+      // Whoever's there from the start is already in their chair.
+      if (!known && firstLook && SEATED.has(plan.spot.pose)) person.seat = 1
       person.leaving = false
       person.bubble.set(this.compact ? firstEmoji(plan.bubble) : plan.bubble)
       this.walkTo(person, plan.spot)
@@ -191,6 +203,8 @@ export class OfficeScene extends Container {
       spot: { ...at, pose: 'stand', lift: 0 },
       path: [],
       leaving: false,
+      seat: 0,
+      drawn: '',
     }
     this.depth.addChild(sprite)
     this.bubbles.addChild(bubble)
@@ -253,9 +267,13 @@ export class OfficeScene extends Container {
     })
   }
 
-  /** Moves everyone along their path and advances the animations. `frame` ticks about 3 times a second. */
-  tick(dt: number, frame: number) {
+  /**
+   * Moves everyone along their path and advances the animations. `frame` ticks about 3 times a
+   * second. Says whether anything looks different, so the world can skip drawing a still frame.
+   */
+  tick(dt: number, frame: number): boolean {
     const frameChanged = frame !== this.frame
+    let changed = frameChanged
     this.frame = frame
     const p = this.propSprites
     p.window.texture = animatedProps.window(frame >> 2)
@@ -270,7 +288,10 @@ export class OfficeScene extends Container {
         person.y = end.y
         person.path = []
       }
-      let budget = WALK_SPEED * dt
+      // Up from the chair before walking off; down into it on arriving.
+      const seat = stepSeat(person.seat, { moving: person.path.length > 0, pose: person.spot.pose }, dt, this.reduced)
+      person.seat = seat.seat
+      let budget = seat.walk ? WALK_SPEED * dt : 0
       while (budget > 0 && person.path.length > 0) {
         const next = person.path[0]!
         const dx = next.x - person.x
@@ -291,20 +312,39 @@ export class OfficeScene extends Container {
         person.sprite.destroy()
         person.bubble.destroy()
         this.people.delete(person.id)
+        changed = true
         continue
       }
       const walking = person.path.length > 0
-      const pose: Pose = walking ? 'walk' : person.spot.pose
+      const pose: Pose = walking && seat.walk ? 'walk' : seat.pose
+      const x = Math.round(person.x)
+      const y = Math.round(person.y + person.seat * SIT_DROP)
+      const look = person.look
+      const drawn = `${x},${y},${pose},${frame},${look.skin}${look.hair}${look.style}${look.figure}`
+      if (drawn === person.drawn) continue
+      person.drawn = drawn
+      changed = true
       // Everyone gets their own rhythm, so a room doesn't blink in unison.
-      person.sprite.texture = personTexture(person.look, pose, frame + (person.id.charCodeAt(0) % 5))
-      person.sprite.position.set(Math.round(person.x), Math.round(person.y))
+      person.sprite.texture = personTexture(look, pose, frame + (person.id.charCodeAt(0) % 5))
+      person.sprite.position.set(x, y)
       person.sprite.zIndex = person.y + (pose === 'sleep' ? 20 : 0)
       const lift = walking ? 0 : person.spot.lift
-      person.bubble.position.set(Math.round(person.x), Math.round(person.y - (pose === 'sleep' ? 8 : 21) - lift))
+      person.bubble.position.set(x, Math.round(person.y - (pose === 'sleep' ? 8 : 21) - lift))
     }
-    // Reduced motion keeps one frame: screens follow who sits down instead.
-    if (frameChanged || this.reduced) this.refreshScreens()
-    this.drawSelection()
+    // The door opens for whoever comes or goes.
+    const open = doorOpen(
+      [...this.people.values()].map((person) => ({ x: person.x, y: person.y, moving: person.path.length > 0 })),
+      door(this.tiles),
+    )
+    if (open !== this.doorIsOpen) {
+      this.doorIsOpen = open
+      this.door.texture = doorTexture(open)
+      changed = true
+    }
+    // Screens follow who's typing (with reduced motion the frame never changes, so on any change).
+    if (changed) this.refreshScreens()
+    if (this.drawSelection()) changed = true
+    return changed
   }
 
   /** Monitors light up at desks where someone is typing. */
@@ -323,20 +363,26 @@ export class OfficeScene extends Container {
     }
   }
 
-  private drawSelection() {
-    this.selection.clear()
+  private selected = ''
+
+  /** The ring under whoever is selected, redrawn only when it moves. Says whether it changed. */
+  private drawSelection(): boolean {
     const person = this.selectedId ? this.people.get(this.selectedId) : undefined
-    if (!person) return
-    this.selection.ellipse(Math.round(person.x), Math.round(person.y), 8, 2.6).stroke({ color: 0xffd479, width: 1 })
+    const now = person ? `${Math.round(person.x)},${Math.round(person.y)}` : ''
+    if (now === this.selected) return false
+    this.selected = now
+    this.selection.clear()
+    if (person) this.selection.ellipse(Math.round(person.x), Math.round(person.y), 8, 2.6).stroke({ color: 0xffd479, width: 1 })
+    return true
   }
 
   /** Day and night (the clock's, or always one): a little darker in the evening, dim at night with screens aglow. */
-  setDaylight(darkness: number) {
-    if (darkness === this.darkness) return
+  setDaylight(darkness: number): boolean {
+    if (darkness === this.darkness) return false
     this.darkness = darkness
     this.night.clear()
-    if (darkness <= 0) return
-    this.night.rect(0, 0, W * T, this.tiles * T).fill({ color: 0x0b1030, alpha: darkness })
+    if (darkness > 0) this.night.rect(0, 0, W * T, this.tiles * T).fill({ color: 0x0b1030, alpha: darkness })
+    return true
   }
 
   setCompact(compact: boolean) {

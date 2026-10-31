@@ -18,16 +18,11 @@ function Panel() {
   const close = useSettingsPanel((state) => state.close)
   const body = useRef<HTMLDivElement>(null)
 
+  // Opening the settings takes the keyboard there (Esc closes them: useKeyboard).
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [close])
-
-  useEffect(() => {
-    if (section) body.current?.querySelector(`#settings-${section}`)?.scrollIntoView({ block: 'start' })
+    const part = section ? body.current?.querySelector(`#settings-${section}`) : null
+    part?.scrollIntoView({ block: 'start' })
+    ;(part ?? body.current)?.querySelector<HTMLElement>('button, input')?.focus()
   }, [section])
 
   return (

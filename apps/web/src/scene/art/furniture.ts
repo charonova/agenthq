@@ -46,6 +46,19 @@ export function drawComputer(ctx: Ctx, tx: number, ty: number, on: boolean, fram
   px(ctx, '#d9dde3', x + 13, y + 3, 9, 2)
 }
 
+/** The way in, at the bottom wall: shut, or open with its panel swung into the room. `x` is its left edge. */
+export function drawDoor(ctx: Ctx, x: number, bottom: number, open: boolean): void {
+  if (!open) {
+    px(ctx, '#7a4b26', x, bottom - 3, 2 * T, 3)
+    px(ctx, '#5e3a1d', x + T - 1, bottom - 3, 1, 3)
+    return
+  }
+  px(ctx, '#2b2119', x, bottom - 3, 2 * T, 3) // the doorway
+  px(ctx, '#7a4b26', x, bottom - 16, 3, 13) // the panel, hinged on the left
+  px(ctx, '#5e3a1d', x + 2, bottom - 16, 1, 13)
+  px(ctx, '#e0b54a', x + 1, bottom - 9, 1, 1) // its handle
+}
+
 export function drawMug(ctx: Ctx, x: number, y: number): void {
   px(ctx, '#f4f4f4', x, y, 3, 3)
   px(ctx, '#6f4a2a', x, y, 3, 1)

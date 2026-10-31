@@ -3,6 +3,7 @@ import {
   drawBookshelf,
   drawComputer,
   drawCouch,
+  drawDoor,
   drawDesk,
   drawFloor,
   drawKitchen,
@@ -69,10 +70,12 @@ export function roomTexture(height: number): Texture {
     const plant = lounge.plant(height)
     drawPlant(ctx, plant.tx * T, plant.ty * T)
     drawPlant(ctx, 21 * T, 2 * T + 2)
-    // The door.
-    ctx.fillStyle = '#7a4b26'
-    ctx.fillRect(7 * T, height * T - 3, 2 * T, 3)
   })
+}
+
+/** The door (its own sprite: it opens as people come and go), 16 pixels tall, standing on the bottom wall. */
+export function doorTexture(open: boolean): Texture {
+  return paint(`door:${open}`, 2 * T, 16, (ctx) => drawDoor(ctx, 0, 16, open))
 }
 
 /** The parts of the room that move: drawn on their own small textures, one per frame. */

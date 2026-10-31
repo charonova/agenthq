@@ -1,6 +1,7 @@
 import { useHashRoute, useOfficeStream } from './state/stream'
 import { useOffices } from './state/store'
 import { useAlerts } from './state/useAlerts'
+import { useKeyboard } from './state/useKeyboard'
 import { useMotion } from './state/useMotion'
 import { useEffect } from 'react'
 import { followNewSessions } from './state/sessions'
@@ -18,6 +19,7 @@ export function App() {
   useHashRoute()
   useAlerts()
   useMotion()
+  useKeyboard()
   useEffect(followNewSessions, [])
   const empty = useOffices((state) => state.connection === 'live' && state.offices.length === 0)
   return (

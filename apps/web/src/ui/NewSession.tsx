@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { recentFolders, startSession, useSessions, type Mode, type Model } from '../state/sessions'
 import { useOffices } from '../state/store'
 
@@ -21,14 +21,6 @@ function Dialog() {
   const [model, setModel] = useState<Model>('')
   const [mode, setMode] = useState<Mode>('default')
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') compose(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [compose])
 
   const submit = async () => {
     if (!cwd.trim() || !text.trim() || busy) return

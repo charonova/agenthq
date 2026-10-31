@@ -48,7 +48,7 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 
 - **The building**: every live session as an office on one map. Drag to move around, scroll to zoom, click an office to go inside.
 - **In an office**: the manager in a glass office, staff at desks in their team colour, interns beside whoever started them. Bubbles say what each one is doing; click anyone for their task, tool, model, context and last words.
-- **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture.
+- **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture, sit down and get up, and the door opens as they come and go.
 - **It tells you when someone needs you**: a desktop notification and a chime when an agent starts waiting for you (🔔 in the header opens their settings); click one to jump there. The tab title shows how many are waiting, and the **✋ need you** counter goes to each in turn. Optionally, also when a session finishes.
 - **A timeline per agent**: its latest tool calls, with times, under its details.
 - **💬 The whole conversation**: open anyone's conversation, manager, teammate or helper, Claude Code or Codex: your prompts, its replies, every tool call with its input and output, messages between teammates. It follows along live, loads older messages as you scroll up (even in multi-gigabyte sessions), and you can search it.
@@ -57,6 +57,7 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 - **⌨️ Type into terminal sessions** (macOS, opt-in): turn it on in ⚙️ Settings, and a session running in Terminal or iTerm2 can be messaged from its conversation: your message is typed into its own tab (found by its terminal device), then Enter, as one line. macOS asks once to let AgentHQ control the app. When it can't (another app, or permission denied), your message is copied to paste there.
 - **Go straight to a session**: double-click anyone (or **Go to ↗** in their details) and its window comes forward: the exact tab in Terminal or iTerm2, the project's window in VS Code, Cursor or Windsurf, or the app it runs in (macOS). Codex sessions too: AgentHQ finds the `codex` working in the thread's folder. Elsewhere, or when it can't, the command that resumes the session is copied for you.
 - **Codex too**: each Codex thread is an office, with its sub-agents (like the guardian) as staff, named as in Codex's app.
+- **⌨️ Keyboard**: Tab and Enter go through the offices, the people in one and their conversation; Esc steps back out one thing at a time.
 - **⚙️ Settings**, kept in your browser: day and night (follow the clock, always day, always night), animation speed, reduced motion (or follow your computer's), sounds and alerts, which offices show (hide one, ended sessions, or Codex's), and the switches above.
 - **🎨 Choose anyone's look**: man or woman, skin, hair colour and style, from their details. Teammates keep the look you chose in every session; a manager keeps it per project.
 
@@ -95,6 +96,7 @@ pnpm build        # web app, then the CLI with it inside
 pnpm e2e          # end-to-end tests (after a build), with screenshots in test-results/
 pnpm start        # build, then open the office
 pnpm media        # the README's screenshots and GIF, from made-up sessions
+pnpm bench        # what drawing costs with 180 made-up agents (after a build)
 ```
 
 CI runs the checks on Linux, macOS and Windows, and the end-to-end tests on Linux.

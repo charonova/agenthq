@@ -210,3 +210,64 @@ export function makeCodexHome(root, now = Date.now()) {
   )
   return root
 }
+
+/**
+ * A big made-up ~/.claude for measuring drawing: `offices` sessions with `staff` teammates each,
+ * every teammate busy with something different and one helper beside half of them.
+ */
+export function makeBigClaudeHome(root, { offices = 12, staff = 9, now = Date.now(), pid = process.pid } = {}) {
+  mkdirSync(join(root, 'sessions'), { recursive: true })
+  const jobs = [
+    ['Edit', (cwd, n) => ({ file_path: `${cwd}/src/file${n}.ts` })],
+    ['Read', (cwd, n) => ({ file_path: `${cwd}/docs/page${n}.md` })],
+    ['Bash', () => ({ command: 'pnpm vitest run', description: 'Run the tests' })],
+    ['Bash', () => ({ command: 'pnpm build', description: 'Build it' })],
+    ['WebSearch', () => ({ query: 'pixel art office' })],
+    ['TodoWrite', () => ({ todos: [] })],
+  ]
+  for (let o = 0; o < offices; o++) {
+    const project = `project${o}`
+    const id = `session-big-${o}`
+    const cwd = `/Users/alex/Code/${project}`
+    const dir = join(root, 'projects', `-Users-alex-Code-${project}`)
+    mkdirSync(join(dir, id, 'subagents'), { recursive: true })
+    writeFileSync(
+      join(root, 'sessions', `${pid}${o}.json`),
+      JSON.stringify({ pid, sessionId: id, cwd, status: 'busy', kind: 'interactive', entrypoint: 'cli' }),
+    )
+    transcript(
+      join(dir, `${id}.jsonl`),
+      [
+        line({ type: 'ai-title', aiTitle: `Big job ${o}` }),
+        prompt(cwd, now, 60, 'go'),
+        tool(cwd, now, 2, 'Agent', { description: 'Start the team' }),
+      ],
+      now,
+      2,
+    )
+    for (let s = 0; s < staff; s++) {
+      const agentId = `a${o}-${s}`
+      const [name, input] = jobs[(o + s) % jobs.length]
+      writeFileSync(
+        join(dir, id, 'subagents', `agent-${agentId}.meta.json`),
+        JSON.stringify({
+          name: `mate${s}`,
+          color: ['blue', 'green', 'red', 'purple'][s % 4],
+          spawnDepth: 0,
+          taskKind: 'in_process_teammate',
+          permissionMode: 'auto',
+        }),
+      )
+      transcript(join(dir, id, 'subagents', `agent-${agentId}.jsonl`), [tool(cwd, now, 2, name, input(cwd, s))], now, 2)
+      if (s % 2 === 0) {
+        const helper = `h${o}-${s}`
+        writeFileSync(
+          join(dir, id, 'subagents', `agent-${helper}.meta.json`),
+          JSON.stringify({ spawnDepth: 1, parentAgentId: agentId, description: `Helper ${s}` }),
+        )
+        transcript(join(dir, id, 'subagents', `agent-${helper}.jsonl`), [tool(cwd, now, 2, 'Grep', { pattern: 'todo' })], now, 2)
+      }
+    }
+  }
+  return root
+}

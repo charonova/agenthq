@@ -94,6 +94,8 @@ export class World {
   private elapsed = 0
   private compact = true
   private view: ViewOptions = { theme: 'clock', speed: 'normal', reduced: false }
+  /** Something changed outside the offices' own ticks (offices came or went, a selection…): draw the next frame. */
+  private dirty = true
   private looks: Record<string, LookChoice> = {}
 
   constructor(
@@ -121,6 +123,8 @@ export class World {
       screenWidth: this.host.clientWidth,
       screenHeight: this.host.clientHeight,
       events: this.app.renderer.events,
+      // The camera moves on the same clock as the people, and stops with them in a hidden tab.
+      ticker: this.app.ticker,
     })
     this.viewport.drag().pinch().wheel({ smooth: 4 }).decelerate({ friction: 0.92 }).clampZoom({ minScale: 0.25, maxScale: 10 })
     this.app.stage.addChild(this.viewport)
@@ -135,9 +139,12 @@ export class World {
     this.app.renderer.on('resize', (width, height) => {
       this.viewport.resize(width, height)
       this.frame(false)
+      this.dirty = true
     })
-    // About 30 frames a second is plenty for pixel art, and nothing at all in a hidden tab.
+    // About 30 frames a second is plenty for pixel art, and nothing at all in a hidden tab. A
+    // frame is drawn only when something changed: a still office costs (almost) nothing.
     this.app.ticker.maxFPS = 30
+    this.app.ticker.remove(this.app.render, this.app)
     this.app.ticker.add((ticker) => this.tick(ticker.deltaMS / 1000))
     document.addEventListener('visibilitychange', this.onVisibility)
   }
@@ -183,6 +190,7 @@ export class World {
     this.arrange(offices.map((office) => office.sessionId))
     if (moved) this.frame(true)
     this.applyDetail()
+    this.dirty = true
   }
 
   /** A grid of offices, most recently active first. */
@@ -217,6 +225,7 @@ export class World {
     await this.ready
     this.view = view
     for (const floor of this.floors.values()) floor.scene.reduced = view.reduced
+    this.dirty = true
   }
 
   /** The looks you chose for people, by whose they are. */
@@ -224,11 +233,13 @@ export class World {
     await this.ready
     this.looks = looks
     for (const floor of this.floors.values()) floor.scene.setLooks(looks)
+    this.dirty = true
   }
 
   async select(agentId: string | null) {
     await this.ready
     for (const floor of this.floors.values()) floor.scene.selectedId = agentId
+    this.dirty = true
   }
 
   /** Points the camera at the focused office, or at the whole building. */
@@ -255,6 +266,7 @@ export class World {
   }
 
   private applyDetail() {
+    this.dirty = true
     const compact = this.viewport.scale.x < DETAIL_ZOOM
     if (compact === this.compact && this.floors.size > 0) {
       for (const floor of this.floors.values()) floor.scene.setCompact(compact)
@@ -292,12 +304,29 @@ export class World {
   private tick(seconds: number) {
     const dt = seconds * speeds[this.view.speed]
     this.elapsed += dt
-    // Reduced motion: one still frame (no blinking, typing or blinking lights).
-    const frame = this.view.reduced ? 0 : Math.floor(this.elapsed / 0.3)
+    // Reduced motion: one still frame (no blinking, typing or blinking lights). Zoomed out,
+    // people are small: they move half as often, so the building redraws half as often.
+    const frame = this.view.reduced ? 0 : Math.floor(this.elapsed / (this.compact ? 0.6 : 0.3))
     const darkness = themeDarkness(this.view.theme, new Date())
+    let changed = this.dirty || this.viewport.dirty
     for (const floor of this.floors.values()) {
-      floor.scene.tick(Math.min(dt, 0.2), frame)
-      floor.scene.setDaylight(darkness)
+      if (floor.scene.tick(Math.min(dt, 0.2), frame) && floor.renderable) changed = true
+      if (floor.scene.setDaylight(darkness)) changed = true
+    }
+    if (!changed) return
+    this.cull()
+    this.app.render()
+    this.dirty = false
+    this.viewport.dirty = false
+  }
+
+  /** Offices outside the view aren't drawn (they still count for the building's size). */
+  private cull() {
+    const view = this.viewport.getVisibleBounds()
+    for (const floor of this.floors.values()) {
+      const { width, height } = floor.size
+      floor.renderable =
+        floor.x < view.x + view.width && floor.x + width > view.x && floor.y < view.y + view.height && floor.y + height > view.y
     }
   }
 }

@@ -6,6 +6,7 @@ import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
 import { LookEditor } from './LookEditor'
 import { useNow } from './useNow'
+import { focusSoon } from '../state/useKeyboard'
 import { useState } from 'react'
 
 export function SidePanel() {
@@ -26,7 +27,16 @@ function BuildingPanel({ offices }: { offices: Office[] }) {
           const working = agents.filter((a) => a.state === 'working').length
           const waiting = agents.filter((a) => a.state === 'waiting').length
           return (
-            <button key={office.sessionId} className="row office-row" onClick={() => focus(office.sessionId)}>
+            <button
+              key={office.sessionId}
+              className="row office-row"
+              data-session={office.sessionId}
+              onClick={() => {
+                focus(office.sessionId)
+                // The keyboard follows into the office: Tab goes through its people.
+                focusSoon('.side .person')
+              }}
+            >
               <span className={`light ${office.ended ? 'ended' : waiting ? 'waiting' : working ? 'busy' : ''}`} />
               <span className="text">
                 <span className="who">
@@ -63,6 +73,8 @@ function OfficePanel({ office }: { office: Office }) {
   const row = (agent: Agent, role: string) => (
     <button
       key={agent.id}
+      data-agent={agent.id}
+      aria-pressed={agent.id === selectedId}
       className={`row person${agent.role === 'intern' ? ' intern' : ''}${agent.id === selectedId ? ' selected' : ''}`}
       onClick={() => select(agent.id === selectedId ? null : agent.id)}
     >
@@ -79,7 +91,13 @@ function OfficePanel({ office }: { office: Office }) {
   return (
     <>
       <div className="office-head">
-        <button className="back" onClick={() => focus(null)}>
+        <button
+          className="back"
+          onClick={() => {
+            focus(null)
+            focusSoon(`.office-row[data-session="${CSS.escape(office.sessionId)}"]`)
+          }}
+        >
           ← Building
         </button>
         <h2>{office.project}</h2>

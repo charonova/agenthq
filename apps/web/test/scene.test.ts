@@ -2,6 +2,7 @@ import type { Agent, Office } from '@agenthq/core'
 import { describe, expect, it } from 'vitest'
 import { MANAGER_DESK, T, blockedTiles, deskOf, roomHeight, seatAt } from '../src/scene/layout'
 import { findPath, nearestWalkable } from '../src/scene/path'
+import { doorOpen, stepSeat } from '../src/scene/motion'
 import { bubbleFor, planOffice } from '../src/scene/plan'
 
 // Made-up offices shaped like the ones the server sends.
@@ -159,5 +160,41 @@ describe('who goes where', () => {
   it('says nothing while sitting idle at the desk', () => {
     expect(bubbleFor(agent({ state: 'idle' }))).toBeNull()
     expect(bubbleFor(agent({ state: 'working', activity: 'thinking' }))).toBe('💭')
+  })
+})
+
+describe('sitting down and getting up', () => {
+  it('sits down on arriving at a chair, crouching on the way', () => {
+    let step = stepSeat(0, { moving: false, pose: 'type' }, 0.1, false)
+    expect(step).toMatchObject({ pose: 'crouch', walk: false })
+    expect(step.seat).toBeCloseTo(0.4)
+    step = stepSeat(step.seat, { moving: false, pose: 'type' }, 0.2, false)
+    expect(step).toEqual({ seat: 1, walk: false, pose: 'type' })
+  })
+
+  it('stays in the chair once seated, and on their feet once up', () => {
+    expect(stepSeat(1, { moving: false, pose: 'type' }, 0.1, false)).toEqual({ seat: 1, walk: false, pose: 'type' })
+    expect(stepSeat(0, { moving: false, pose: 'drink' }, 0.1, false)).toEqual({ seat: 0, walk: false, pose: 'drink' })
+  })
+
+  it('gets up before walking away', () => {
+    const step = stepSeat(1, { moving: true, pose: 'stand' }, 0.1, false)
+    expect(step).toMatchObject({ walk: false, pose: 'crouch' })
+    expect(stepSeat(0, { moving: true, pose: 'stand' }, 0.1, false)).toEqual({ seat: 0, walk: true, pose: 'walk' })
+  })
+
+  it('stands where nobody sits, and skips all of it with reduced motion', () => {
+    expect(stepSeat(0, { moving: false, pose: 'read' }, 0.1, false)).toEqual({ seat: 0, walk: false, pose: 'read' })
+    expect(stepSeat(0, { moving: false, pose: 'type' }, 0.01, true)).toEqual({ seat: 1, walk: false, pose: 'type' })
+    expect(stepSeat(1, { moving: true, pose: 'stand' }, 0.01, true)).toEqual({ seat: 0, walk: true, pose: 'walk' })
+  })
+})
+
+describe('the door', () => {
+  it('opens for whoever comes or goes, and stays shut for those standing by', () => {
+    const at = { x: 120, y: 236 }
+    expect(doorOpen([{ x: 125, y: 230, moving: true }], at)).toBe(true)
+    expect(doorOpen([{ x: 125, y: 230, moving: false }], at)).toBe(false)
+    expect(doorOpen([{ x: 300, y: 100, moving: true }], at)).toBe(false)
   })
 })

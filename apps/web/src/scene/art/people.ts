@@ -49,27 +49,30 @@ export function lookFor(name: string, color: string | null, role: 'manager' | 's
   }
 }
 
-export type Pose = 'stand' | 'walk' | 'sit' | 'type' | 'raise' | 'drink' | 'sleep' | 'read'
+/** `crouch`: halfway between standing and sitting, as someone sits down or gets up. */
+export type Pose = 'stand' | 'walk' | 'sit' | 'type' | 'raise' | 'drink' | 'sleep' | 'read' | 'crouch'
 
 /** A person 12×20 art pixels, standing on (x, y): x is the middle, y the floor under their feet. */
 export function drawPerson(ctx: Ctx, look: Look, x: number, y: number, pose: Pose, frame: number): void {
   if (pose === 'sleep') return drawSleeper(ctx, look, x, y, frame)
   const ox = Math.round(x) - 6
-  const oy = Math.round(y) - 20
+  // Crouching: everything above the knees comes down two pixels.
+  const dip = pose === 'crouch' ? 2 : 0
+  const oy = Math.round(y) - 20 + dip
   const pants = look.outfit === 'suit' ? '#1e2436' : '#34405a'
   const shoes = '#1b1b22'
 
   // Legs: a step while walking. A skirt shows the legs below it.
   const step = pose === 'walk' ? frame % 2 : -1
   const legs = look.figure === 'woman' ? look.skin : pants
-  px(ctx, legs, ox + 3, oy + 15, 2, step === 0 ? 3 : 4)
-  px(ctx, legs, ox + 7, oy + 15, 2, step === 1 ? 3 : 4)
+  px(ctx, legs, ox + 3, oy + 15, 2, (step === 0 ? 3 : 4) - dip)
+  px(ctx, legs, ox + 7, oy + 15, 2, (step === 1 ? 3 : 4) - dip)
   if (look.figure === 'woman') {
     px(ctx, pants, ox + 2, oy + 15, 8, 2)
     px(ctx, darker(pants, 0.2), ox + 2, oy + 16, 8, 1)
   }
-  px(ctx, shoes, ox + 2, oy + (step === 0 ? 18 : 19), 3, 1)
-  px(ctx, shoes, ox + 7, oy + (step === 1 ? 18 : 19), 3, 1)
+  px(ctx, shoes, ox + 2, oy + (step === 0 ? 18 : 19) - dip, 3, 1)
+  px(ctx, shoes, ox + 7, oy + (step === 1 ? 18 : 19) - dip, 3, 1)
 
   // Body and arms.
   px(ctx, look.shirt, ox + 2, oy + 9, 8, 6)
@@ -86,12 +89,13 @@ export function drawPerson(ctx: Ctx, look: Look, x: number, y: number, pose: Pos
     px(ctx, look.skin, ox + 1, oy + 14, 1, 1)
     px(ctx, arm, ox + 10, oy + 3 - (frame % 2), 1, 7)
     px(ctx, look.skin, ox + 10, oy + 1 - (frame % 2), 2, 2)
-  } else if (pose === 'type') {
+  } else if (pose === 'type' || pose === 'crouch') {
     // Hands on the keyboard, taking turns.
     px(ctx, arm, ox + 1, oy + 9, 1, 4)
     px(ctx, arm, ox + 10, oy + 9, 1, 4)
-    px(ctx, look.skin, ox + 2, oy + 12 + (frame % 2), 2, 1)
-    px(ctx, look.skin, ox + 8, oy + 13 - (frame % 2), 2, 1)
+    const tap = pose === 'type' ? frame % 2 : 0
+    px(ctx, look.skin, ox + 2, oy + 12 + tap, 2, 1)
+    px(ctx, look.skin, ox + 8, oy + 13 - tap, 2, 1)
   } else if (pose === 'drink') {
     px(ctx, arm, ox + 1, oy + 9, 1, 5)
     px(ctx, look.skin, ox + 1, oy + 14, 1, 1)
