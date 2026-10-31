@@ -47,10 +47,12 @@ test('a timeline of what an agent did, and the alerts menu', async ({ page }) =>
   await page.goto('/#/office/session-shop')
   await page.locator('.person', { hasText: 'qa' }).click()
   await expect(page.locator('.timeline li')).toContainText(['Run the export tests'])
+  // The bell opens the alerts in the settings.
   await page.locator('.bell').click()
-  await expect(page.locator('.alerts .menu')).toContainText('Notify me when an agent needs me')
-  await page.locator('.alerts label', { hasText: 'Also when a session finishes' }).click()
-  await expect(page.locator('.alerts label', { hasText: 'Also when a session finishes' }).locator('input')).toBeChecked()
+  const alerts = page.locator('.settings #settings-alerts')
+  await expect(alerts).toContainText('Notify me when an agent needs me')
+  await alerts.locator('label', { hasText: 'Also when a session finishes' }).click()
+  await expect(alerts.locator('label', { hasText: 'Also when a session finishes' }).locator('input')).toBeChecked()
   await page.screenshot({ path: 'test-results/alerts.png' })
 })
 
@@ -124,4 +126,45 @@ test('Codex threads have conversations too', async ({ page }) => {
   await page.locator('.person').first().click()
   await page.locator('.chat-open').click()
   await expect(page.locator('.chat .tool').first()).toContainText('rg useAuth')
+})
+
+test('settings: day and night, motion, hidden offices and someone’s look, kept in the browser', async ({ page }) => {
+  await page.goto('/#/office/session-shop')
+  await page.locator('.gear').click()
+  const settings = page.locator('.settings')
+  await settings.getByRole('radio', { name: 'Always night' }).click()
+  await settings.getByRole('radio', { name: 'Fast' }).click()
+  await settings.getByRole('radio', { name: 'Reduced' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-motion', 'reduced')
+  await expect(settings).toContainText('Reduced now')
+  await page.screenshot({ path: 'test-results/settings.png' })
+
+  // Hide the blog's office: it leaves the building, and comes back.
+  await settings.locator('#settings-offices label', { hasText: 'blog' }).click()
+  await page.keyboard.press('Escape')
+  await expect(settings).toHaveCount(0)
+  await page.locator('.back').click()
+  await expect(page.locator('.office-row', { hasText: 'shop' })).toBeVisible()
+  await expect(page.locator('.office-row', { hasText: 'blog' })).toHaveCount(0)
+
+  // Choose how qa looks.
+  await page.locator('.office-row', { hasText: 'shop' }).click()
+  await page.locator('.person', { hasText: 'qa' }).click()
+  await page.locator('.go.look').click()
+  await page.locator('.look-editor').getByRole('radio', { name: 'Woman' }).click()
+  await page.locator('.look-editor').getByRole('radio', { name: 'Skin #a8714a' }).click()
+  await expect(page.locator('.look-editor').getByRole('radio', { name: 'Woman' })).toHaveAttribute('aria-checked', 'true')
+  await page.screenshot({ path: 'test-results/look.png' })
+
+  // Everything is still so after a reload.
+  await page.reload()
+  await page.locator('.gear').click()
+  await expect(settings.getByRole('radio', { name: 'Always night' })).toHaveAttribute('aria-checked', 'true')
+  await expect(settings.locator('.looks')).toContainText('staff · qa')
+  await settings.locator('.looks li', { hasText: 'qa' }).locator('.btn').click()
+  await settings.locator('.btn', { hasText: 'Show every office' }).click()
+  await settings.getByRole('radio', { name: 'Like my computer' }).click()
+  await page.keyboard.press('Escape')
+  await page.goto('/')
+  await expect(page.locator('.office-row', { hasText: 'blog' })).toBeVisible()
 })

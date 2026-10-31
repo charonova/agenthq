@@ -22,7 +22,7 @@ export const HOOK_TIMEOUT = 3600
  * Any trouble, or no answer: it prints nothing, and Claude Code's own prompt decides.
  */
 export const hookScript = `// AgentHQ's permission hook: hands Claude Code's permission prompts to AgentHQ and waits for your answer.
-// Installed from AgentHQ (🔔 → Answer from AgentHQ); remove it there too. Without AgentHQ running, it does nothing.
+// Installed from AgentHQ (⚙️ Settings → Answer from AgentHQ); remove it there too. Without AgentHQ running, it does nothing.
 import { readFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { dirname, join } from 'node:path'

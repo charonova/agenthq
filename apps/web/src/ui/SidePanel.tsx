@@ -4,7 +4,9 @@ import { useAsks } from '../state/asks'
 import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
+import { LookEditor } from './LookEditor'
 import { useNow } from './useNow'
+import { useState } from 'react'
 
 export function SidePanel() {
   const offices = useOffices((state) => state.offices)
@@ -93,7 +95,9 @@ function OfficePanel({ office }: { office: Office }) {
       </div>
       {selected && (
         <Details
+          key={selected.id}
           agent={selected}
+          office={office}
           sessionId={office.sessionId}
           status={office.ended ? 'ended' : office.process?.status}
           now={now}
@@ -103,8 +107,21 @@ function OfficePanel({ office }: { office: Office }) {
   )
 }
 
-function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: string; status?: string | null; now: number }) {
+function Details({
+  agent,
+  office,
+  sessionId,
+  status,
+  now,
+}: {
+  agent: Agent
+  office: Office
+  sessionId: string
+  status?: string | null
+  now: number
+}) {
   const showChat = useChat((state) => state.show)
+  const [styling, setStyling] = useState(false)
   const asked = useAsks((state) => state.asks.filter((ask) => ask.sessionId === sessionId && ask.agentId === agent.id).length)
   const items: [string, string | null][] = [
     ['Doing', describe(agent, now)],
@@ -124,6 +141,9 @@ function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: s
         <button className="go chat-open" onClick={() => showChat(sessionId, agent.id)} title="Read its whole conversation">
           💬 Conversation
         </button>
+        <button className="go look" onClick={() => setStyling(!styling)} aria-expanded={styling} title="Choose how they look">
+          🎨
+        </button>
         <button
           className="go jump"
           onClick={() => void goToSession(sessionId)}
@@ -132,6 +152,7 @@ function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: s
           Go to ↗
         </button>
       </div>
+      {styling && <LookEditor agent={agent} office={office} />}
       {asked > 0 && (
         <button className="asked" onClick={() => showChat(sessionId, agent.id)}>
           ✋ {asked === 1 ? 'It asks you something' : `It asks you ${asked} things`} · <b>Answer</b>

@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { goToAgent } from '../state/asks'
 import { useSessions } from '../state/sessions'
 import { everyone, totals, useOffices } from '../state/store'
-import { AlertsMenu } from './AlertsMenu'
+import { Bell, Gear } from './HeaderButtons'
 
 const connectionText = { connecting: 'Connecting…', live: 'Live', offline: 'Reconnecting…' } as const
 
@@ -39,7 +39,10 @@ export function Header() {
       <button className="btn new-session" onClick={() => useSessions.getState().compose(true)}>
         ＋ New session
       </button>
-      <AlertsMenu />
+      <div className="alerts">
+        <Bell />
+        <Gear />
+      </div>
       <div className={`live ${connection}`}>
         <span className="dot" />
         {connectionText[connection]}

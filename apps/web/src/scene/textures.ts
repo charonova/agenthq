@@ -47,7 +47,7 @@ export const FRAMES = { person: 14, props: 12 } as const
 export const PERSON = { width: 24, height: 26, feetX: 12, feetY: 24 } as const
 
 export function lookKey(look: Look): string {
-  return `${look.skin}${look.hair}${look.style}${look.shirt}${look.outfit}`
+  return `${look.skin}${look.hair}${look.style}${look.figure}${look.shirt}${look.outfit}`
 }
 
 export function personTexture(look: Look, pose: Pose, frame: number): Texture {

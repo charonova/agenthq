@@ -1,7 +1,7 @@
 import { darker, hash, px, type Ctx } from './paint'
 
-const skins = ['#f6d5b5', '#e9b98f', '#d19a6a', '#a8714a', '#7a4e2f', '#5a3a24']
-const hairColors = ['#2b1d14', '#4a2f1f', '#8a5a2b', '#d9a441', '#1f1f24', '#a83a2a', '#6b6b78']
+export const skins = ['#f6d5b5', '#e9b98f', '#d19a6a', '#a8714a', '#7a4e2f', '#5a3a24']
+export const hairColors = ['#2b1d14', '#4a2f1f', '#8a5a2b', '#d9a441', '#1f1f24', '#a83a2a', '#6b6b78']
 const shirts = ['#4f7dd6', '#d65f5f', '#57a85f', '#d9a441', '#8d63c9', '#2fa3a3', '#e07a3f', '#c75a9e']
 
 /** Claude Code's team colours, as shirts. */
@@ -17,24 +17,33 @@ const teamColors: Record<string, string> = {
 }
 
 export type HairStyle = 'short' | 'spiky' | 'buzz' | 'long' | 'bun' | 'ponytail' | 'bob' | 'curly'
-const styles: HairStyle[] = ['short', 'spiky', 'buzz', 'long', 'bun', 'ponytail', 'bob', 'curly']
+export const styles: HairStyle[] = ['short', 'spiky', 'buzz', 'long', 'bun', 'ponytail', 'bob', 'curly']
+
+/** A man wears trousers; a woman a skirt, and has lashes. */
+export type Figure = 'man' | 'woman'
+export const figures: Figure[] = ['man', 'woman']
 
 export interface Look {
   skin: string
   hair: string
   style: HairStyle
+  figure: Figure
   shirt: string
   /** The manager wears a suit and tie; interns a badge. */
   outfit: 'suit' | 'casual' | 'intern'
 }
 
-/** The same name always gets the same person. */
-export function lookFor(name: string, color: string | null, role: 'manager' | 'staff' | 'intern'): Look {
+/** What you chose for someone in the settings: whatever isn't chosen stays as their name made it. */
+export type LookChoice = Partial<Pick<Look, 'skin' | 'hair' | 'style' | 'figure'>>
+
+/** The same name always gets the same person, unless you chose otherwise. */
+export function lookFor(name: string, color: string | null, role: 'manager' | 'staff' | 'intern', choice: LookChoice = {}): Look {
   const h = hash(name)
   return {
-    skin: skins[h % skins.length]!,
-    hair: hairColors[(h >>> 3) % hairColors.length]!,
-    style: styles[(h >>> 7) % styles.length]!,
+    skin: (choice.skin && skins.includes(choice.skin) && choice.skin) || skins[h % skins.length]!,
+    hair: (choice.hair && hairColors.includes(choice.hair) && choice.hair) || hairColors[(h >>> 3) % hairColors.length]!,
+    style: (choice.style && styles.includes(choice.style) && choice.style) || styles[(h >>> 7) % styles.length]!,
+    figure: (choice.figure && figures.includes(choice.figure) && choice.figure) || figures[(h >>> 15) % figures.length]!,
     shirt: role === 'manager' ? '#2c3550' : (color && teamColors[color]) || shirts[(h >>> 11) % shirts.length]!,
     outfit: role === 'manager' ? 'suit' : role === 'intern' ? 'intern' : 'casual',
   }
@@ -50,10 +59,15 @@ export function drawPerson(ctx: Ctx, look: Look, x: number, y: number, pose: Pos
   const pants = look.outfit === 'suit' ? '#1e2436' : '#34405a'
   const shoes = '#1b1b22'
 
-  // Legs: a step while walking.
+  // Legs: a step while walking. A skirt shows the legs below it.
   const step = pose === 'walk' ? frame % 2 : -1
-  px(ctx, pants, ox + 3, oy + 15, 2, step === 0 ? 3 : 4)
-  px(ctx, pants, ox + 7, oy + 15, 2, step === 1 ? 3 : 4)
+  const legs = look.figure === 'woman' ? look.skin : pants
+  px(ctx, legs, ox + 3, oy + 15, 2, step === 0 ? 3 : 4)
+  px(ctx, legs, ox + 7, oy + 15, 2, step === 1 ? 3 : 4)
+  if (look.figure === 'woman') {
+    px(ctx, pants, ox + 2, oy + 15, 8, 2)
+    px(ctx, darker(pants, 0.2), ox + 2, oy + 16, 8, 1)
+  }
   px(ctx, shoes, ox + 2, oy + (step === 0 ? 18 : 19), 3, 1)
   px(ctx, shoes, ox + 7, oy + (step === 1 ? 18 : 19), 3, 1)
 
@@ -103,7 +117,11 @@ export function drawPerson(ctx: Ctx, look: Look, x: number, y: number, pose: Pos
   const blink = frame % 7 === 0
   px(ctx, '#1b1b22', ox + 4, oy + 5, 1, blink ? 0.34 : 1)
   px(ctx, '#1b1b22', ox + 7, oy + 5, 1, blink ? 0.34 : 1)
-  px(ctx, darker(look.skin, 0.25), ox + 5, oy + 7, 2, 1)
+  if (look.figure === 'woman' && !blink) {
+    px(ctx, '#1b1b22', ox + 3, oy + 4, 1, 1)
+    px(ctx, '#1b1b22', ox + 8, oy + 4, 1, 1)
+  }
+  px(ctx, look.figure === 'woman' ? '#c4626a' : darker(look.skin, 0.25), ox + 5, oy + 7, 2, 1)
   drawHair(ctx, look, ox, oy)
 }
 

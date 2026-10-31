@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { World } from '../scene/World'
 import { goToSession } from '../state/jump'
-import { useOffices } from '../state/store'
+import { useOffices, useSettings } from '../state/store'
+import { useReducedMotion } from '../state/useMotion'
 
 /** Hosts the PixiJS world and keeps it in step with the store, both ways. */
 export function WorldView() {
@@ -17,6 +18,18 @@ export function WorldView() {
         void goToSession(sessionId)
       },
     })
+    const applySettings = () => {
+      const settings = useSettings.getState()
+      void world.setView({
+        theme: settings.theme,
+        speed: settings.speed,
+        reduced: useReducedMotion.getState().reduced,
+      })
+      void world.setLooks(settings.looks)
+    }
+    applySettings()
+    const unsubscribeSettings = useSettings.subscribe(applySettings)
+    const unsubscribeMotion = useReducedMotion.subscribe(applySettings)
     const sync = () => {
       const state = useOffices.getState()
       void world.setOffices(state.offices)
@@ -31,6 +44,8 @@ export function WorldView() {
     })
     return () => {
       unsubscribe()
+      unsubscribeSettings()
+      unsubscribeMotion()
       world.destroy()
     }
   }, [])

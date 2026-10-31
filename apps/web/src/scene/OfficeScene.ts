@@ -1,6 +1,7 @@
 import type { Agent, Office } from '@agenthq/core'
 import { Container, Graphics, Sprite, Text, type TextStyleOptions } from 'pixi.js'
-import { lookFor, type Look, type Pose } from './art/people'
+import { lookKeyOf } from '../state/view'
+import { lookFor, type Look, type LookChoice, type Pose } from './art/people'
 import { MANAGER_DESK, T, W, blockedTiles, deskOf, door, props, roomHeight, seatAt, type Point } from './layout'
 import { findPath } from './path'
 import { planOffice, type Spot } from './plan'
@@ -92,6 +93,10 @@ export class OfficeScene extends Container {
   selectedId: string | null = null
   /** Bubbles show only their emoji when the office is small on screen. */
   compact = false
+  /** Reduced motion: people step straight to where they go. */
+  reduced = false
+  /** The looks you chose, by whose they are. */
+  private looks: Record<string, LookChoice> = {}
 
   constructor(office: Office) {
     super()
@@ -157,8 +162,22 @@ export class OfficeScene extends Container {
     this.tick(0, this.frame)
   }
 
+  private lookOf(agent: Agent): Look {
+    return lookFor(agent.name + agent.id, agent.color, agent.role, this.looks[lookKeyOf(agent, this.office)])
+  }
+
+  /** New choices of looks: everyone here who has one changes clothes at once. */
+  setLooks(looks: Record<string, LookChoice>) {
+    this.looks = looks
+    const agents = [this.office.manager, ...this.office.staff, ...this.office.interns]
+    for (const agent of agents) {
+      const person = this.people.get(agent.id)
+      if (person) person.look = this.lookOf(agent)
+    }
+  }
+
   private addPerson(agent: Agent, at: Point): Person {
-    const look = lookFor(agent.name + agent.id, agent.color, agent.role)
+    const look = this.lookOf(agent)
     const sprite = new Sprite(personTexture(look, 'stand', 0))
     sprite.anchor.set(PERSON.feetX / PERSON.width, PERSON.feetY / PERSON.height)
     const bubble = new Bubble()
@@ -245,6 +264,12 @@ export class OfficeScene extends Container {
     p.kitchen.texture = animatedProps.kitchen(frame)
 
     for (const person of [...this.people.values()]) {
+      if (this.reduced && person.path.length > 0) {
+        const end = person.path[person.path.length - 1]!
+        person.x = end.x
+        person.y = end.y
+        person.path = []
+      }
       let budget = WALK_SPEED * dt
       while (budget > 0 && person.path.length > 0) {
         const next = person.path[0]!
@@ -277,7 +302,8 @@ export class OfficeScene extends Container {
       const lift = walking ? 0 : person.spot.lift
       person.bubble.position.set(Math.round(person.x), Math.round(person.y - (pose === 'sleep' ? 8 : 21) - lift))
     }
-    if (frameChanged) this.refreshScreens()
+    // Reduced motion keeps one frame: screens follow who sits down instead.
+    if (frameChanged || this.reduced) this.refreshScreens()
     this.drawSelection()
   }
 
@@ -304,7 +330,7 @@ export class OfficeScene extends Container {
     this.selection.ellipse(Math.round(person.x), Math.round(person.y), 8, 2.6).stroke({ color: 0xffd479, width: 1 })
   }
 
-  /** Day and night follow the clock: a little darker in the evening, dim at night with screens aglow. */
+  /** Day and night (the clock's, or always one): a little darker in the evening, dim at night with screens aglow. */
   setDaylight(darkness: number) {
     if (darkness === this.darkness) return
     this.darkness = darkness

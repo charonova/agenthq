@@ -1,6 +1,8 @@
 import type { Office } from '@agenthq/core'
 import { Application, Container, Graphics, Text, TextureSource } from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
+import { speeds, themeDarkness, type Speed, type Theme } from '../state/view'
+import type { LookChoice } from './art/people'
 import { OfficeScene } from './OfficeScene'
 
 TextureSource.defaultOptions.scaleMode = 'nearest'
@@ -9,6 +11,14 @@ const GAP = 56
 const SIGN_HEIGHT = 18
 /** Below this zoom, offices are small on screen: no name tags, emoji-only bubbles. */
 const DETAIL_ZOOM = 1.6
+
+/** How the building looks and moves, from the settings. */
+export interface ViewOptions {
+  theme: Theme
+  speed: Speed
+  /** People step straight to where they go, nothing blinks, and the camera cuts instead of gliding. */
+  reduced: boolean
+}
 
 export interface WorldEvents {
   onFocus: (sessionId: string | null) => void
@@ -83,6 +93,8 @@ export class World {
   private disposed = false
   private elapsed = 0
   private compact = true
+  private view: ViewOptions = { theme: 'clock', speed: 'normal', reduced: false }
+  private looks: Record<string, LookChoice> = {}
 
   constructor(
     private host: HTMLElement,
@@ -153,6 +165,8 @@ export class World {
       if (floor) floor.update(office)
       else {
         const created = new Floor(office)
+        created.scene.setLooks(this.looks)
+        created.scene.reduced = this.view.reduced
         this.floors.set(office.sessionId, created)
         this.viewport.addChild(created)
       }
@@ -199,6 +213,19 @@ export class World {
     this.frame(true)
   }
 
+  async setView(view: ViewOptions) {
+    await this.ready
+    this.view = view
+    for (const floor of this.floors.values()) floor.scene.reduced = view.reduced
+  }
+
+  /** The looks you chose for people, by whose they are. */
+  async setLooks(looks: Record<string, LookChoice>) {
+    await this.ready
+    this.looks = looks
+    for (const floor of this.floors.values()) floor.scene.setLooks(looks)
+  }
+
   async select(agentId: string | null) {
     await this.ready
     for (const floor of this.floors.values()) floor.scene.selectedId = agentId
@@ -218,7 +245,7 @@ export class World {
     const padding = target ? 0.96 : 0.92
     const scale = Math.min((this.viewport.screenWidth / box.width) * padding, (this.viewport.screenHeight / box.height) * padding)
     const position = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-    if (animate) {
+    if (animate && !this.view.reduced) {
       this.viewport.animate({ position, scale, time: 650, ease: 'easeInOutSine', callbackOnComplete: () => this.applyDetail() })
     } else {
       this.viewport.setZoom(scale, true)
@@ -262,22 +289,15 @@ export class World {
     if (this.focused) this.events.onFocus(null)
   }
 
-  private tick(dt: number) {
+  private tick(seconds: number) {
+    const dt = seconds * speeds[this.view.speed]
     this.elapsed += dt
-    const frame = Math.floor(this.elapsed / 0.3)
-    const darkness = darknessAt(new Date())
+    // Reduced motion: one still frame (no blinking, typing or blinking lights).
+    const frame = this.view.reduced ? 0 : Math.floor(this.elapsed / 0.3)
+    const darkness = themeDarkness(this.view.theme, new Date())
     for (const floor of this.floors.values()) {
-      floor.scene.tick(Math.min(dt, 0.1), frame)
+      floor.scene.tick(Math.min(dt, 0.2), frame)
       floor.scene.setDaylight(darkness)
     }
   }
-}
-
-/** How dark the office is at this hour: day, a dim evening, dark at night. */
-export function darknessAt(date: Date): number {
-  const hour = date.getHours() + date.getMinutes() / 60
-  if (hour >= 7 && hour < 18) return 0
-  if (hour >= 18 && hour < 20) return ((hour - 18) / 2) * 0.28
-  if (hour >= 5 && hour < 7) return ((7 - hour) / 2) * 0.28
-  return 0.28
 }

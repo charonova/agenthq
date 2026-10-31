@@ -86,12 +86,12 @@ test('typing into a terminal session is off until turned on, then goes to its ta
   const chat = page.locator('.chat')
   await expect(chat.locator('.chat-foot')).toContainText('turn on typing into terminals')
 
-  await page.locator('.bell').click()
+  await page.locator('.gear').click()
   await page.locator('.typing .btn', { hasText: 'Turn on…' }).click()
   await expect(page.locator('.typing')).toContainText('exactly as if you typed it there')
   await page.locator('.typing .btn', { hasText: 'Turn on' }).click()
   await expect(page.locator('.typing')).toContainText('On')
-  await page.locator('.bell').click()
+  await page.locator('.gear').click()
 
   const box = chat.locator('.composer textarea')
   await expect(box).toHaveAttribute('placeholder', /terminal tab/)
@@ -102,7 +102,7 @@ test('typing into a terminal session is off until turned on, then goes to its ta
   await expect(box).toHaveValue('')
   await page.screenshot({ path: 'test-results/typing.png' })
 
-  await page.locator('.bell').click()
+  await page.locator('.gear').click()
   await page.locator('.typing .btn', { hasText: 'Turn off' }).click()
   await expect(chat.locator('.chat-foot')).toContainText('turn on typing into terminals')
 })

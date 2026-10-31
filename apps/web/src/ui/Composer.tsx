@@ -26,7 +26,7 @@ export function Composer({ office, isManager }: { office: Office; isManager: boo
           : !isManager
             ? 'Messages go to the manager: open its conversation to write one.'
             : `It runs in a terminal: message it there (“Go to session”)${
-                inTerminal && canType ? ', or turn on typing into terminals under 🔔' : ''
+                inTerminal && canType ? ', or turn on typing into terminals in ⚙️ Settings' : ''
               }.${enabled ? ' Its prompts show up here.' : ''}`}
       </footer>
     )
