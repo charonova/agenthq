@@ -18,8 +18,11 @@ export type State =
   | 'done' // just finished its turn
   | 'gone' // a helper that finished: it went home
 
-/** Where an idle agent spends its time; an idle manager watches its team while anyone works. */
-export type Rest = 'coffee' | 'couch' | 'watching' | null
+/**
+ * Where an idle agent spends its time; an idle manager watches its team while anyone works, or
+ * stands by the server rack while a command it left running in the background goes on.
+ */
+export type Rest = 'coffee' | 'couch' | 'watching' | 'background' | null
 
 export interface Tool {
   name: string
@@ -74,6 +77,8 @@ export interface Agent {
   contextTokens: number | null
   /** Its latest tool calls, oldest first: the timeline. */
   history: Step[]
+  /** While waiting: what for, in Claude Code's words ("permission prompt", "input needed"…), when it says. */
+  waitingFor?: string | null
   /** When its transcript last changed. */
   updatedAt: number
   /** Its transcript file, for reading its conversation (server side only uses it). */
@@ -94,7 +99,7 @@ export interface Office {
   /** Helpers that finished and left, counted only. */
   wentHome: number
   /** The Claude Code process running it, when there is one: its id and what it says it's doing. */
-  process: { pid: number; status: string | null } | null
+  process: { pid: number; status: string | null; waitingFor?: string | null } | null
   /** Its process has ended (known only where Claude Code keeps `~/.claude/sessions`). */
   ended: boolean
   updatedAt: number

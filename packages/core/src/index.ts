@@ -10,7 +10,7 @@ export {
 export { applyStatus, stateOf, timing, type StateInput } from './state.js'
 export { HISTORY, describeTool, readHeadLines, readTail, readTailLines } from './tail.js'
 export type * from './types.js'
-export { isAlive, runningSessions, type RunningSession } from './processes.js'
+export { isAlive, runningSessions, waitingReasons, type RunningSession } from './processes.js'
 export {
   codexHome,
   codexState,

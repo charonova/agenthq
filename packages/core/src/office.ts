@@ -301,6 +301,7 @@ function buildOffice(input: BuildInput): Office {
   interns.sort((a, b) => b.updatedAt - a.updatedAt)
 
   manager.activity = activityOf(manager.state, leadTail)
+  manager.waitingFor = manager.state === 'waiting' ? (owner?.waitingFor ?? null) : null
   const cwd = leadTail.cwd
   return {
     kind: 'claude',
@@ -312,7 +313,7 @@ function buildOffice(input: BuildInput): Office {
     staff,
     interns,
     wentHome,
-    process: owner ? { pid: owner.pid, status: owner.status } : null,
+    process: owner ? { pid: owner.pid, status: owner.status, waitingFor: owner.waitingFor } : null,
     ended,
     updatedAt: Math.max(modified, ...staff.map((a) => a.updatedAt), ...interns.map((a) => a.updatedAt)),
   }

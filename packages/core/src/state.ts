@@ -54,11 +54,13 @@ export function stateOf({ tail, modified, now, permissionMode, finished }: State
 /**
  * What Claude Code itself says about a running session (`~/.claude/sessions/<pid>.json`),
  * applied to the lead's state, which is otherwise guessed from how long its transcript has been
- * quiet. Only the values seen so far count; any other leaves the guess as it is.
+ * quiet. Claude Code writes these words (2.1.x) from its turn's state; any other leaves the guess.
  *
- * - "busy": working. A tool call still unanswered is running (a slow build), not waiting for you.
- * - "idle" with a tool call unanswered: waiting for you (a permission prompt).
+ * - "busy": a turn is running. A tool call still unanswered is running (a slow build), not waiting for you.
+ * - "waiting": it needs you (a permission prompt, a question, a dialog: `waitingFor` says which).
+ * - "idle" with a tool call unanswered: waiting for you (older versions say "idle" at a prompt).
  * - "idle" otherwise: its turn is over.
+ * - "shell": its turn is over, but a command it started in the background still runs.
  * - No process at all (when Claude Code keeps these files): the session ended; nobody waits.
  */
 export function applyStatus(
@@ -74,6 +76,8 @@ export function applyStatus(
   })
   if (input.ended) return guess.state === 'working' || guess.state === 'waiting' ? resting() : guess
   if (status === 'busy') return { state: 'working', rest: null }
+  if (status === 'waiting') return { state: 'waiting', rest: null }
+  if (status === 'shell') return { state: 'idle', rest: 'background' }
   if (status === 'idle') {
     if (tail.step === 'calledTool') return { state: 'waiting', rest: null }
     if (guess.state === 'working' || guess.state === 'waiting') return resting()

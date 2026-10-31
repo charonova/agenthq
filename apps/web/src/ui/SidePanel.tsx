@@ -148,7 +148,7 @@ function Details({
     ['Model', agent.model],
     ['Context', agent.contextTokens ? `${Math.round(agent.contextTokens / 1000)}k tokens` : null],
     ['Last seen', agoText(agent.updatedAt, now)],
-    ['Claude Code', agent.role === 'manager' ? (status ?? null) : null],
+    ['Claude Code', agent.role === 'manager' && status ? `${status}${agent.waitingFor ? ` · ${agent.waitingFor}` : ''}` : null],
   ]
   return (
     <div className="details">

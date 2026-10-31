@@ -85,13 +85,22 @@ const teammateSays = (cwd, now, ago, from, color, summary, text) =>
  */
 export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
   mkdirSync(join(root, 'sessions'), { recursive: true })
-  const running = (n, sessionId, project, status) =>
+  const running = (n, sessionId, project, status, extra = {}) =>
     writeFileSync(
       join(root, 'sessions', `${pid}${n}.json`),
-      JSON.stringify({ pid, sessionId, cwd: `/Users/alex/Code/${project}`, status, kind: 'interactive', entrypoint: 'cli' }),
+      JSON.stringify({
+        pid,
+        sessionId,
+        cwd: `/Users/alex/Code/${project}`,
+        status,
+        kind: 'interactive',
+        entrypoint: 'cli',
+        ...extra,
+      }),
     )
   running(1, 'session-shop', 'shop', 'idle')
-  running(2, 'session-blog', 'blog', 'idle')
+  // At a permission prompt, as Claude Code 2.1 says it.
+  running(2, 'session-blog', 'blog', 'waiting', { waitingFor: 'permission prompt' })
   running(3, 'session-api', 'api', 'busy')
 
   const session = (project, id, title, lines, ago) => {

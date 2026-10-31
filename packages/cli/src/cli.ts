@@ -65,8 +65,12 @@ function line(agent: Agent): string {
             ? 'getting coffee'
             : agent.rest === 'watching'
               ? 'watching the team'
-              : 'idle'
-        : agent.state
+              : agent.rest === 'background'
+                ? 'a command runs in the background'
+                : 'idle'
+        : agent.state === 'waiting' && agent.waitingFor
+          ? `waiting: ${agent.waitingFor}`
+          : agent.state
   return `${role}  ${icons[agent.state]} ${doing}  · ${ago(agent.updatedAt)}`
 }
 

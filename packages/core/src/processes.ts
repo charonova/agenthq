@@ -8,9 +8,14 @@ export interface RunningSession {
   cwd: string | null
   /** "cli", "sdk-cli"… */
   entrypoint: string | null
-  /** Claude Code's own word for what it's doing: "busy", "idle"… */
+  /** Claude Code's own word for what it's doing: "busy", "idle", "waiting", "shell". */
   status: string | null
+  /** While "waiting": what for, one of Claude Code's own few words. */
+  waitingFor: string | null
 }
+
+/** What Claude Code says a session waits for (its own fixed words; anything else is left out). */
+export const waitingReasons = ['permission prompt', 'input needed', 'dialog open', 'goal proposal', 'sandbox request']
 
 /** Whether a process is still alive (signal 0 checks without touching it). */
 export function isAlive(pid: number): boolean {
@@ -44,7 +49,15 @@ export function runningSessions(home: string, alive: (pid: number) => boolean = 
       const sessionId = typeof data.sessionId === 'string' ? data.sessionId : null
       if (!sessionId || !Number.isInteger(pid) || !alive(pid)) continue
       const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null)
-      found.set(sessionId, { pid, sessionId, cwd: text(data.cwd), entrypoint: text(data.entrypoint), status: text(data.status) })
+      const waitingFor = typeof data.waitingFor === 'string' && waitingReasons.includes(data.waitingFor) ? data.waitingFor : null
+      found.set(sessionId, {
+        pid,
+        sessionId,
+        cwd: text(data.cwd),
+        entrypoint: text(data.entrypoint),
+        status: text(data.status),
+        waitingFor,
+      })
     } catch {
       // Half-written or not ours: skip it.
     }

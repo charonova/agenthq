@@ -213,8 +213,15 @@ describe('Claude Code’s own status', () => {
     expect(applyStatus(guess('done'), tail('finished'), 'idle', at)).toEqual(guess('done'))
   })
 
+  it('takes "waiting" as needing you, and "shell" as a turn over with a command still running', () => {
+    expect(applyStatus(guess('working'), tail('calledTool'), 'waiting', at)).toEqual({ state: 'waiting', rest: null })
+    expect(applyStatus(guess('working'), tail('awaitingModel'), 'waiting', at)).toEqual({ state: 'waiting', rest: null })
+    expect(applyStatus(guess('working'), tail('awaitingModel'), 'shell', at)).toEqual({ state: 'idle', rest: 'background' })
+    expect(applyStatus(guess('waiting'), tail('calledTool'), 'shell', at)).toEqual({ state: 'idle', rest: 'background' })
+  })
+
   it('leaves the guess alone for words it doesn’t know', () => {
-    expect(applyStatus(guess('waiting'), tail('calledTool'), 'shell', at)).toEqual(guess('waiting'))
+    expect(applyStatus(guess('waiting'), tail('calledTool'), 'napping', at)).toEqual(guess('waiting'))
     expect(applyStatus(guess('working'), tail('awaitingModel'), null, at)).toEqual(guess('working'))
   })
 

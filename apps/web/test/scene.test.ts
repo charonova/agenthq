@@ -1,6 +1,6 @@
 import type { Agent, Office } from '@agenthq/core'
 import { describe, expect, it } from 'vitest'
-import { MANAGER_DESK, T, blockedTiles, deskOf, roomHeight, seatAt } from '../src/scene/layout'
+import { MANAGER_DESK, T, blockedTiles, deskOf, props, roomHeight, seatAt } from '../src/scene/layout'
 import { findPath, nearestWalkable } from '../src/scene/path'
 import { doorOpen, stepSeat } from '../src/scene/motion'
 import { bubbleFor, planOffice } from '../src/scene/plan'
@@ -160,6 +160,14 @@ describe('who goes where', () => {
   it('says nothing while sitting idle at the desk', () => {
     expect(bubbleFor(agent({ state: 'idle' }))).toBeNull()
     expect(bubbleFor(agent({ state: 'working', activity: 'thinking' }))).toBe('💭')
+  })
+
+  it('says what a lead waits for, and stands by the rack while a background command runs', () => {
+    expect(bubbleFor(agent({ state: 'waiting', waitingFor: 'permission prompt' }))).toBe('✋ permission')
+    expect(bubbleFor(agent({ state: 'waiting' }))).toBe('✋ needs you')
+    expect(bubbleFor(agent({ state: 'idle', rest: 'background' }))).toBe('⚡ in the background')
+    const spot = planOffice(office([], [], { state: 'idle', rest: 'background' })).get('s1')!.spot
+    expect(tileOf(spot.x, spot.y).tx).toBe(props.rack)
   })
 })
 

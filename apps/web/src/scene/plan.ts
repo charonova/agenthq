@@ -76,6 +76,8 @@ function spotFor(agent: Agent, office: Office, at: (place: Place) => Spot): Spot
     case 'idle':
       if (agent.rest === 'coffee') return at('coffee')
       if (agent.rest === 'watching') return at('watch')
+      // A command it left running: by the server rack, keeping an eye on it.
+      if (agent.rest === 'background') return at('run')
       if (agent.rest === 'couch') return seatOnCouch(at)
       return sit('sit')
     case 'waiting':
@@ -138,17 +140,34 @@ export function homeOf(agent: Agent, office: Office): Point {
   return { x: shared.meeting.x + (n - 1) * 12, y: shared.meeting.y }
 }
 
+/** What Claude Code waits for, in a word for a bubble. */
+const needs: Record<string, string> = {
+  'permission prompt': 'permission',
+  'input needed': 'question',
+  'dialog open': 'needs you',
+  'goal proposal': 'goal',
+  'sandbox request': 'sandbox',
+}
+
 const short = (text: string, max = 22) => (text.length > max ? text.slice(0, max - 1) + '…' : text)
 
 /** What the bubble over someone's head says. */
 export function bubbleFor(agent: Agent): string | null {
   switch (agent.state) {
     case 'waiting':
-      return '✋ needs you'
+      return agent.waitingFor ? `✋ ${needs[agent.waitingFor] ?? 'needs you'}` : '✋ needs you'
     case 'done':
       return '✅ done'
     case 'idle':
-      return agent.rest === 'coffee' ? '☕' : agent.rest === 'couch' ? '💤' : agent.rest === 'watching' ? '👀' : null
+      return agent.rest === 'coffee'
+        ? '☕'
+        : agent.rest === 'couch'
+          ? '💤'
+          : agent.rest === 'watching'
+            ? '👀'
+            : agent.rest === 'background'
+              ? '⚡ in the background'
+              : null
     case 'working': {
       const activity = agent.activity ?? 'thinking'
       if (activity === 'thinking') return '💭'
@@ -166,13 +185,14 @@ export function describe(agent: Agent, now = Date.now()): string {
   const ago = agoText(agent.updatedAt, now)
   switch (agent.state) {
     case 'waiting':
-      return 'Waiting for you'
+      return agent.waitingFor ? `Waiting for you: ${agent.waitingFor}` : 'Waiting for you'
     case 'done':
       return 'Just finished'
     case 'idle':
       if (agent.rest === 'couch') return `On the couch · ${ago}`
       if (agent.rest === 'coffee') return `Coffee break · ${ago}`
       if (agent.rest === 'watching') return 'Watching the team'
+      if (agent.rest === 'background') return 'A command runs in the background'
       return 'At the desk'
     case 'gone':
       return 'Went home'
@@ -194,6 +214,14 @@ export function stateEmoji(agent: Agent): string {
   if (agent.state === 'waiting') return '✋'
   if (agent.state === 'done') return '✅'
   if (agent.state === 'idle')
-    return agent.rest === 'couch' ? '💤' : agent.rest === 'coffee' ? '☕' : agent.rest === 'watching' ? '👀' : '🪑'
+    return agent.rest === 'couch'
+      ? '💤'
+      : agent.rest === 'coffee'
+        ? '☕'
+        : agent.rest === 'watching'
+          ? '👀'
+          : agent.rest === 'background'
+            ? '⚡'
+            : '🪑'
   return agent.role === 'manager' ? '👔' : agent.role === 'intern' ? '🧑‍🎓' : '🧑‍💻'
 }

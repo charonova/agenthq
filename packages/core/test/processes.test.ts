@@ -35,7 +35,16 @@ it('maps running sessions to their processes, and skips ended ones', () => {
     cwd: '/Users/me/Code/shop',
     entrypoint: 'cli',
     status: 'busy',
+    waitingFor: null,
   })
+})
+
+it('keeps what a session waits for, in Claude Code’s own words only', () => {
+  write('100.json', { pid: 100, sessionId: 'aaaa', status: 'waiting', waitingFor: 'permission prompt' })
+  write('200.json', { pid: 200, sessionId: 'bbbb', status: 'waiting', waitingFor: 'something else entirely' })
+  const running = runningSessions(home, () => true)
+  expect(running.get('aaaa')).toMatchObject({ status: 'waiting', waitingFor: 'permission prompt' })
+  expect(running.get('bbbb')).toMatchObject({ status: 'waiting', waitingFor: null })
 })
 
 it('finds nothing without a sessions folder', () => {
