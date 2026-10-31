@@ -91,3 +91,12 @@ export interface Office {
   wentHome: number
   updatedAt: number
 }
+
+/** What happened when the page asked to go to a session (`POST /api/jump`). */
+export interface JumpResult {
+  done: 'opened' | 'copy'
+  /** What the page says: "Opened its tab in Terminal", or why it couldn't. */
+  message: string
+  /** For `copy`: the command that resumes the session. */
+  command?: string
+}

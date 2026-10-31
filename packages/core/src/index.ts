@@ -2,3 +2,4 @@ export { claudeHome, defaultIgnore, discoverOffices, ignoreFrom, looksLikeClaude
 export { stateOf, timing, type StateInput } from './state.js'
 export { HISTORY, describeTool, readHeadLines, readTail, readTailLines } from './tail.js'
 export type * from './types.js'
+export { isAlive, runningSessions, type RunningSession } from './processes.js'

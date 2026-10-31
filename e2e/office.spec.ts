@@ -50,3 +50,22 @@ test('a timeline of what an agent did, and the alerts menu', async ({ page }) =>
   await expect(page.locator('.alerts label', { hasText: 'Also when a session finishes' }).locator('input')).toBeChecked()
   await page.screenshot({ path: 'test-results/alerts.png' })
 })
+
+test('going to a session that can’t be opened copies the command that resumes it', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/#/office/session-shop')
+  await page.locator('.person', { hasText: 'api' }).first().click()
+  await page.locator('.go').click()
+  // The made-up sessions aren't running anywhere: the command comes instead.
+  await expect(page.locator('.toast')).toContainText('claude --resume session-shop')
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    "cd '/Users/alex/Code/shop' && claude --resume session-shop",
+  )
+})
+
+test('only the office page can ask to open a window', async ({ request }) => {
+  const asked = await request.post('/api/jump', { data: { sessionId: 'session-shop' } })
+  expect(asked.status()).toBe(403)
+  const unknown = await request.post('/api/jump', { data: { sessionId: 'nope' }, headers: { 'X-AgentHQ': '1' } })
+  expect(unknown.status()).toBe(404)
+})

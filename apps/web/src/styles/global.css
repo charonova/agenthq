@@ -403,3 +403,58 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.details-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.details-head h4 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.go {
+  flex: none;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 212, 121, 0.14);
+  color: var(--yellow);
+}
+.go:hover {
+  background: rgba(255, 212, 121, 0.24);
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  max-width: min(680px, 90%);
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(31, 33, 43, 0.96);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+  animation: toast-in 0.18s ease-out;
+}
+.toast.ok {
+  border-color: rgba(76, 217, 123, 0.4);
+}
+.toast.info {
+  border-color: rgba(255, 212, 121, 0.4);
+}
+.toast.error {
+  border-color: rgba(255, 123, 114, 0.5);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}

@@ -1,9 +1,10 @@
 import { readFile } from 'node:fs/promises'
-import { createServer, type ServerResponse } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { watch, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { discoverOffices, type Office } from '@agenthq/core'
+import { jumpTo } from './jump.js'
 
 export interface ServerOptions {
   home: string
@@ -78,6 +79,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       request.on('close', () => clients.delete(response))
       return
     }
+    if (url.pathname === '/api/jump') {
+      await handleJump(request, response, offices, home)
+      return
+    }
     if (url.pathname === '/api/offices') {
       response.writeHead(200, { 'Content-Type': 'application/json' })
       response.end(latest || '[]')
@@ -135,5 +140,46 @@ function listen(server: ReturnType<typeof createServer>, port: number, tries = 2
     server.once('error', onError)
     server.once('listening', onListening)
     server.listen(port, '127.0.0.1')
+  })
+}
+
+/**
+ * `POST /api/jump {"sessionId": "…"}`: brings a session's window forward. Only the office's own
+ * page may ask: it must send the `X-AgentHQ` header (other websites can't without a CORS
+ * preflight, which this server never answers) to a localhost `Host` (no DNS rebinding), and only
+ * for a session in the office right now.
+ */
+async function handleJump(request: IncomingMessage, response: ServerResponse, offices: Office[], home: string) {
+  const reply = (status: number, body: object) => {
+    response.writeHead(status, { 'Content-Type': 'application/json' })
+    response.end(JSON.stringify(body))
+  }
+  const host = (request.headers.host ?? '').replace(/:\d+$/, '')
+  if (request.method !== 'POST' || request.headers['x-agenthq'] !== '1' || !['localhost', '127.0.0.1', '[::1]'].includes(host)) {
+    return reply(403, { error: 'Not allowed' })
+  }
+  let sessionId: unknown
+  try {
+    sessionId = (JSON.parse(await readBody(request)) as { sessionId?: unknown }).sessionId
+  } catch {
+    return reply(400, { error: 'Expected {"sessionId": "…"}' })
+  }
+  const office = offices.find((candidate) => candidate.sessionId === sessionId)
+  if (!office) return reply(404, { error: 'No such session in the office' })
+  reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd }))
+}
+
+function readBody(request: IncomingMessage, limit = 4096): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let body = ''
+    request.on('data', (chunk: Buffer) => {
+      body += chunk.toString('utf8')
+      if (body.length > limit) {
+        reject(new Error('Too large'))
+        request.destroy()
+      }
+    })
+    request.on('end', () => resolve(body))
+    request.on('error', reject)
   })
 }

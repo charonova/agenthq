@@ -4,6 +4,7 @@ import { useAlerts } from './state/useAlerts'
 import { EmptyState } from './ui/EmptyState'
 import { Header } from './ui/Header'
 import { SidePanel } from './ui/SidePanel'
+import { Toast } from './ui/Toast'
 import { WorldView } from './ui/WorldView'
 
 export function App() {
@@ -15,7 +16,10 @@ export function App() {
     <div className="app">
       <Header />
       <main className="layout">
-        <section className="stage">{empty ? <EmptyState /> : <WorldView />}</section>
+        <section className="stage">
+          {empty ? <EmptyState /> : <WorldView />}
+          <Toast />
+        </section>
         <SidePanel />
       </main>
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { World } from '../scene/World'
+import { goToSession } from '../state/jump'
 import { useOffices } from '../state/store'
 
 /** Hosts the PixiJS world and keeps it in step with the store, both ways. */
@@ -8,7 +9,14 @@ export function WorldView() {
 
   useEffect(() => {
     const { focus, select } = useOffices.getState()
-    const world = new World(host.current!, { onFocus: focus, onSelect: select })
+    const world = new World(host.current!, {
+      onFocus: focus,
+      onSelect: select,
+      onJump: (sessionId, agentId) => {
+        useOffices.getState().jump(sessionId, agentId)
+        void goToSession(sessionId)
+      },
+    })
     const sync = () => {
       const state = useOffices.getState()
       void world.setOffices(state.offices)

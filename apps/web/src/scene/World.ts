@@ -13,6 +13,8 @@ const DETAIL_ZOOM = 1.6
 export interface WorldEvents {
   onFocus: (sessionId: string | null) => void
   onSelect: (agentId: string | null) => void
+  /** A double-click on someone: go to their session. */
+  onJump: (sessionId: string, agentId: string) => void
 }
 
 /** An office with its sign above the door: status light, project and title. */
@@ -107,6 +109,12 @@ export class World {
     this.viewport.drag().pinch().wheel({ smooth: 4 }).decelerate({ friction: 0.92 }).clampZoom({ minScale: 0.25, maxScale: 10 })
     this.app.stage.addChild(this.viewport)
     this.viewport.on('clicked', ({ world }) => this.click(world.x, world.y))
+    this.app.canvas.addEventListener('dblclick', (event) => {
+      const rect = this.app.canvas.getBoundingClientRect()
+      const world = this.viewport.toWorld(event.clientX - rect.left, event.clientY - rect.top)
+      const hit = this.agentAt(world.x, world.y)
+      if (hit) this.events.onJump(hit.sessionId, hit.agentId)
+    })
     this.viewport.on('zoomed', () => this.applyDetail())
     this.app.renderer.on('resize', (width, height) => {
       this.viewport.resize(width, height)
@@ -223,6 +231,15 @@ export class World {
     }
     this.compact = compact
     for (const floor of this.floors.values()) floor.scene.setCompact(compact)
+  }
+
+  /** The office and agent under a point of the world, if any. */
+  private agentAt(x: number, y: number): { sessionId: string; agentId: string } | null {
+    for (const [sessionId, floor] of this.floors) {
+      const agentId = floor.scene.agentAt(x - floor.x - floor.scene.x, y - floor.y - floor.scene.y)
+      if (agentId) return { sessionId, agentId }
+    }
+    return null
   }
 
   private click(x: number, y: number) {

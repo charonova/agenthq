@@ -1,5 +1,6 @@
 import type { Agent, Office } from '@agenthq/core'
 import { activityIcon, agoText, describe, stateEmoji } from '../scene/plan'
+import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
 import { useNow } from './useNow'
 
@@ -36,7 +37,9 @@ function BuildingPanel({ offices }: { offices: Office[] }) {
           )
         })}
       </div>
-      <p className="hint">Click an office to go inside. Drag to move around, scroll to zoom.</p>
+      <p className="hint">
+        Click an office to go inside, double-click someone to go to their session. Drag to move around, scroll to zoom.
+      </p>
     </>
   )
 }
@@ -81,12 +84,12 @@ function OfficePanel({ office }: { office: Office }) {
         {internsOf(office.sessionId).map((intern) => row(intern, 'intern'))}
         {office.staff.map((member) => [row(member, 'staff'), ...internsOf(member.id).map((intern) => row(intern, 'intern'))])}
       </div>
-      {selected && <Details agent={selected} now={now} />}
+      {selected && <Details agent={selected} sessionId={office.sessionId} now={now} />}
     </>
   )
 }
 
-function Details({ agent, now }: { agent: Agent; now: number }) {
+function Details({ agent, sessionId, now }: { agent: Agent; sessionId: string; now: number }) {
   const items: [string, string | null][] = [
     ['Doing', describe(agent, now)],
     ['Task', agent.task],
@@ -97,9 +100,18 @@ function Details({ agent, now }: { agent: Agent; now: number }) {
   ]
   return (
     <div className="details">
-      <h4>
-        {stateEmoji(agent)} {agent.role === 'manager' ? 'Manager' : agent.name}
-      </h4>
+      <div className="details-head">
+        <h4>
+          {stateEmoji(agent)} {agent.role === 'manager' ? 'Manager' : agent.name}
+        </h4>
+        <button
+          className="go"
+          onClick={() => void goToSession(sessionId)}
+          title="Bring its terminal or editor window forward (or double-click them)"
+        >
+          Go to session ↗
+        </button>
+      </div>
       <dl>
         {items
           .filter(([, value]) => value)
