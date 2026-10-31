@@ -916,7 +916,7 @@ button {
 .asked:hover {
   background: rgba(255, 212, 121, 0.24);
 }
-.answering {
+.switch-box {
   margin: 6px 0 2px;
   padding: 10px 8px 4px;
   border-top: 1px solid var(--line);
@@ -924,26 +924,26 @@ button {
   gap: 8px;
   font-size: 13px;
 }
-.answering p {
+.switch-box p {
   margin: 0;
   display: flex;
   justify-content: space-between;
 }
-.answering p span {
+.switch-box p span {
   color: var(--faint);
   font-size: 12px;
 }
-.answering p span.on {
+.switch-box p span.on {
   color: var(--green);
 }
-.answering small {
+.switch-box small {
   color: var(--muted);
   font-size: 12px;
 }
-.answering code {
+.switch-box code {
   font-size: 11.5px;
 }
-.answering .btn {
+.switch-box .btn {
   justify-self: start;
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { chime } from '../state/sound'
-import { setAnswering, useAsks } from '../state/asks'
+import { setAnswering, setTyping, useAsks } from '../state/asks'
 import { useSettings } from '../state/store'
 import { allowNotifications } from '../state/useAlerts'
 
@@ -11,7 +11,10 @@ export function AlertsMenu() {
   const menu = useRef<HTMLDivElement>(null)
   const { notify, sound, finished, set } = useSettings()
   const enabled = useAsks((state) => state.enabled)
+  const typing = useAsks((state) => state.typing)
+  const canType = useAsks((state) => state.canType)
   const [confirming, setConfirming] = useState(false)
+  const [confirmingTyping, setConfirmingTyping] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -59,7 +62,7 @@ export function AlertsMenu() {
           <button className="test" onClick={() => chime('waiting')}>
             ▶ Test sound
           </button>
-          <div className="answering">
+          <div className="switch-box answering">
             <p>
               <b>Answer from AgentHQ</b> {enabled ? <span className="on">On</span> : <span>Off</span>}
             </p>
@@ -103,6 +106,52 @@ export function AlertsMenu() {
               </>
             )}
           </div>
+          {canType && (
+            <div className="switch-box typing">
+              <p>
+                <b>Type into terminals</b> {typing ? <span className="on">On</span> : <span>Off</span>}
+              </p>
+              {typing ? (
+                <>
+                  <small>
+                    Messages you write in a terminal session’s conversation are typed into its Terminal or iTerm2 tab, then Enter.
+                  </small>
+                  <button className="btn" onClick={() => void setTyping(false)}>
+                    Turn off
+                  </button>
+                </>
+              ) : confirmingTyping ? (
+                <>
+                  <small>
+                    What you send from a session’s conversation is typed into its own Terminal or iTerm2 tab, exactly as if you
+                    typed it there, then Enter (macOS asks once to let AgentHQ control the app). Line breaks become spaces.
+                    Nothing is typed anywhere else; Claude Code’s settings don’t change.
+                  </small>
+                  <div className="row-buttons">
+                    <button
+                      className="btn primary"
+                      onClick={() => {
+                        setConfirmingTyping(false)
+                        void setTyping(true)
+                      }}
+                    >
+                      Turn on
+                    </button>
+                    <button className="btn" onClick={() => setConfirmingTyping(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <small>Message sessions running in Terminal or iTerm2 from here (macOS).</small>
+                  <button className="btn" onClick={() => setConfirmingTyping(true)}>
+                    Turn on…
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

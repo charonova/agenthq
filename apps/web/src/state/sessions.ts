@@ -87,6 +87,28 @@ export async function sendMessage(sessionId: string, text: string): Promise<bool
   }
 }
 
+/** Types a message into the terminal tab a session runs in; when it can't, the message is copied to paste there. */
+export async function typeIntoTerminal(sessionId: string, text: string): Promise<boolean> {
+  const { show } = useToast.getState()
+  try {
+    const response = await fetch('/api/type', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-AgentHQ': '1' },
+      body: JSON.stringify({ sessionId, text }),
+    })
+    const result = (await response.json().catch(() => ({}))) as { done?: 'typed' | 'copy'; message?: string; error?: string }
+    if (!response.ok) throw new Error(result.error ?? response.statusText)
+    if (result.done === 'copy') {
+      await navigator.clipboard.writeText(text).catch(() => undefined)
+      show(result.message ?? 'Copied your message', 'info')
+    } else show(result.message ?? 'Typed it')
+    return true
+  } catch (error) {
+    show(`Couldn’t type it: ${(error as Error).message}`, 'error')
+    return false
+  }
+}
+
 export async function interrupt(sessionId: string): Promise<void> {
   try {
     await post('interrupt', { sessionId })

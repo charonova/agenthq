@@ -73,5 +73,36 @@ test('a session running in a terminal is messaged there', async ({ page }) => {
   await page.goto('/#/office/session-shop')
   await page.locator('.person', { hasText: 'Manager' }).click()
   await page.locator('.chat-open').click()
-  await expect(page.locator('.chat .chat-foot')).toContainText('It runs in a terminal')
+  await expect(page.locator('.chat')).toContainText('It runs in a terminal')
+})
+
+test('typing into a terminal session is off until turned on, then goes to its tab (copied here)', async ({ page, request }) => {
+  const type = { sessionId: 'session-blog', text: 'hi' }
+  expect((await request.post('/api/type', { data: type })).status()).toBe(403)
+  expect((await request.post('/api/typing', { data: { enable: true } })).status()).toBe(403)
+  await page.goto('/#/office/session-blog')
+  await page.locator('.person', { hasText: 'Manager' }).click()
+  await page.locator('.chat-open').click()
+  const chat = page.locator('.chat')
+  await expect(chat.locator('.chat-foot')).toContainText('turn on typing into terminals')
+
+  await page.locator('.bell').click()
+  await page.locator('.typing .btn', { hasText: 'Turn on…' }).click()
+  await expect(page.locator('.typing')).toContainText('exactly as if you typed it there')
+  await page.locator('.typing .btn', { hasText: 'Turn on' }).click()
+  await expect(page.locator('.typing')).toContainText('On')
+  await page.locator('.bell').click()
+
+  const box = chat.locator('.composer textarea')
+  await expect(box).toHaveAttribute('placeholder', /terminal tab/)
+  // Tests never type into real windows (AGENTHQ_JUMP=copy): the message is copied instead.
+  await box.fill('-run the tests\nthen commit')
+  await box.press('Enter')
+  await expect(page.locator('.toast')).toContainText('copied your message')
+  await expect(box).toHaveValue('')
+  await page.screenshot({ path: 'test-results/typing.png' })
+
+  await page.locator('.bell').click()
+  await page.locator('.typing .btn', { hasText: 'Turn off' }).click()
+  await expect(chat.locator('.chat-foot')).toContainText('turn on typing into terminals')
 })

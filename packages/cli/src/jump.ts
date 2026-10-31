@@ -192,6 +192,21 @@ async function perform(action: JumpAction, host: Host | null): Promise<JumpResul
   }
 }
 
+/** The Claude Code process running a session, and the app it runs in (none on Windows, or when it isn't running). */
+export async function findHost(
+  home: string,
+  sessionId: string,
+): Promise<{ running: RunningSession | undefined; host: Host | null }> {
+  const running = runningSessions(home).get(sessionId)
+  if (!running || process.platform === 'win32') return { running, host: null }
+  try {
+    const { stdout } = await run('ps', ['-axo', 'pid=,ppid=,tty=,comm='], { maxBuffer: 16 * 1024 * 1024 })
+    return { running, host: hostOf(running.pid, parseProcessTable(stdout)) }
+  } catch {
+    return { running, host: null }
+  }
+}
+
 /**
  * Brings a session forward: its terminal tab, its editor window, or its app. When there's no
  * way to (not running anymore, another system, an app we can't steer), the page gets the
@@ -206,16 +221,7 @@ export async function jumpTo(
   if (process.env.AGENTHQ_JUMP === 'copy' || session.kind === 'codex') {
     return { done: 'copy', message: 'Copied the command that resumes it', command: resumeCommand(session) }
   }
-  const running: RunningSession | undefined = runningSessions(home).get(session.sessionId)
-  let host: Host | null = null
-  if (running && process.platform !== 'win32') {
-    try {
-      const { stdout } = await run('ps', ['-axo', 'pid=,ppid=,tty=,comm='], { maxBuffer: 16 * 1024 * 1024 })
-      host = hostOf(running.pid, parseProcessTable(stdout))
-    } catch {
-      host = null
-    }
-  }
+  const { running, host } = await findHost(home, session.sessionId)
   const action = planJump(process.platform, running ? host : null, {
     sessionId: session.sessionId,
     cwd: running?.cwd ?? session.cwd,

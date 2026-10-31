@@ -1,6 +1,6 @@
 // Starts AgentHQ on a made-up ~/.claude, for Playwright (see playwright.config.ts).
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -11,6 +11,8 @@ const codex = makeCodexHome(mkdtempSync(join(tmpdir(), 'agenthq-e2e-codex-')))
 const port = process.env.PORT ?? '4799'
 // AgentHQ's own folder (the hook's server file), where the tests find it.
 const state = join(tmpdir(), `agenthq-e2e-state-${port}`)
+// Switches turned on by an earlier run start off again.
+rmSync(state, { recursive: true, force: true })
 // A folder to start sessions in; a stand-in agent runs them (never real Claude Code).
 mkdirSync(join(tmpdir(), `agenthq-e2e-project-${port}`), { recursive: true })
 const agent = pathToFileURL(join(import.meta.dirname, 'fake-agent.mjs')).href

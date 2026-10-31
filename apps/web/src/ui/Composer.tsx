@@ -1,18 +1,22 @@
 import type { Office } from '@agenthq/core'
 import { useState } from 'react'
 import { useAsks } from '../state/asks'
-import { endSession, interrupt, sendMessage } from '../state/sessions'
+import { endSession, interrupt, sendMessage, typeIntoTerminal } from '../state/sessions'
 
 /**
  * Talking to a session from its conversation: one AgentHQ runs takes messages (and can be
- * interrupted); one that ended can be resumed here; one running in a terminal is answered there.
+ * interrupted); one that ended can be resumed here; one running in a terminal is answered
+ * there, or typed into its tab when you turned that on (macOS).
  */
 export function Composer({ office, isManager }: { office: Office; isManager: boolean }) {
   const enabled = useAsks((state) => state.enabled)
+  const typing = useAsks((state) => state.typing)
+  const canType = useAsks((state) => state.canType)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const managed = office.managed
-  const canSend = office.kind === 'claude' && isManager && (managed || office.ended)
+  const inTerminal = office.kind === 'claude' && !managed && !office.ended && office.process !== null
+  const canSend = office.kind === 'claude' && isManager && (managed || office.ended || (inTerminal && typing))
 
   if (!canSend) {
     return (
@@ -21,7 +25,9 @@ export function Composer({ office, isManager }: { office: Office; isManager: boo
           ? 'Answer Codex in its session (“Go to session”).'
           : !isManager
             ? 'Messages go to the manager: open its conversation to write one.'
-            : `It runs in a terminal: message it there (“Go to session”).${enabled ? ' Its prompts show up here.' : ''}`}
+            : `It runs in a terminal: message it there (“Go to session”)${
+                inTerminal && canType ? ', or turn on typing into terminals under 🔔' : ''
+              }.${enabled ? ' Its prompts show up here.' : ''}`}
       </footer>
     )
   }
@@ -29,8 +35,35 @@ export function Composer({ office, isManager }: { office: Office; isManager: boo
   const send = async () => {
     if (!text.trim() || sending) return
     setSending(true)
-    if (await sendMessage(office.sessionId, text)) setText('')
+    const sent = inTerminal ? await typeIntoTerminal(office.sessionId, text) : await sendMessage(office.sessionId, text)
+    if (sent) setText('')
     setSending(false)
+  }
+
+  if (inTerminal) {
+    return (
+      <footer className="composer">
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              void send()
+            }
+          }}
+          placeholder="Type into its terminal tab, as if you were there"
+          rows={2}
+          aria-label="Your message"
+        />
+        <div className="composer-actions">
+          <span className="composer-state">It runs in a terminal · Enter types it into its tab, as one line</span>
+          <button className="btn primary" disabled={!text.trim() || sending} onClick={() => void send()}>
+            Type it
+          </button>
+        </div>
+      </footer>
+    )
   }
 
   return (

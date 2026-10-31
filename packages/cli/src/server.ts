@@ -18,6 +18,7 @@ import { Asks, type HookInput } from './asks.js'
 import { answeringEnabled, setAnswering, stateDir, writeHookScript } from './hook.js'
 import { jumpTo } from './jump.js'
 import { Sessions, type Mode, type Model } from './sessions.js'
+import { canType, setTyping, typeInto, typingEnabled } from './typing.js'
 
 export interface ServerOptions {
   home: string
@@ -50,6 +51,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   // A secret for this run: only the hook (which reads it from AgentHQ's folder) can hand prompts in.
   const token = randomBytes(32).toString('hex')
   let enabled = answeringEnabled(home)
+  let typing = typingEnabled()
   // Keep the installed hook up to date with this version.
   if (enabled) writeHookScript()
   let latestAsks = ''
@@ -74,8 +76,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       draftTimer ??= setTimeout(sendDrafts, 80)
     },
   )
+  /** Prompts waiting on you, and the switches that change what the page may do. */
+  const switches = () => ({ enabled, typing, canType: canType(), asks: asks.list() })
   const sendAsks = (force = false) => {
-    const payload = JSON.stringify({ enabled, asks: asks.list() })
+    const payload = JSON.stringify(switches())
     if (payload === latestAsks && !force) return
     latestAsks = payload
     for (const client of clients) client.write(`event: asks\ndata: ${payload}\n\n`)
@@ -100,6 +104,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     }
     // Prompts the terminal answered go away; the settings may have changed by hand.
     enabled = answeringEnabled(home)
+    typing = typingEnabled()
     asks.update(offices)
     sendAsks()
     // States are sent as they are now; only real changes go out.
@@ -137,7 +142,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       response.write('retry: 2000\n\n')
       clients.add(response)
       send(response, latest || '[]')
-      response.write(`event: asks\ndata: ${latestAsks || JSON.stringify({ enabled, asks: [] })}\n\n`)
+      response.write(`event: asks\ndata: ${latestAsks || JSON.stringify(switches())}\n\n`)
       for (const [sessionId, draft] of Object.entries(sessions.drafts()))
         response.write(`event: draft\ndata: ${JSON.stringify({ sessionId, draft })}\n\n`)
       request.on('close', () => clients.delete(response))
@@ -156,7 +161,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     if (url.pathname === '/api/asks') {
       if (!fromOwnPage(request)) return void response.writeHead(403).end()
       response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
-      response.end(JSON.stringify({ enabled, asks: asks.list() }))
+      response.end(JSON.stringify(switches()))
       return
     }
     if (url.pathname === '/api/answer') {
@@ -180,6 +185,24 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       } catch (error) {
         json(response, 500, { error: `Claude Code’s settings weren’t changed: ${(error as Error).message}` })
       }
+      return
+    }
+    if (url.pathname === '/api/typing') {
+      if (request.method !== 'POST' || !fromOwnPage(request)) return void json(response, 403, { error: 'Not allowed' })
+      try {
+        const { enable } = JSON.parse(await readBody(request)) as { enable?: unknown }
+        if (typeof enable !== 'boolean') return void json(response, 400, { error: 'Expected {"enable": true|false}' })
+        typing = setTyping(enable)
+        log({ typing })
+        sendAsks(true)
+        json(response, 200, { typing })
+      } catch (error) {
+        json(response, 400, { error: (error as Error).message })
+      }
+      return
+    }
+    if (url.pathname === '/api/type') {
+      await handleType(request, response, offices, home)
       return
     }
     if (url.pathname === '/api/jump') {
@@ -288,6 +311,33 @@ async function handleJump(request: IncomingMessage, response: ServerResponse, of
   const office = offices.find((candidate) => candidate.sessionId === sessionId)
   if (!office) return reply(404, { error: 'No such session in the office' })
   reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd, kind: office.kind }))
+}
+
+/**
+ * `POST /api/type {"sessionId", "text"}`: types a message into the terminal tab of a session
+ * running there. Guarded like the jump, only once you turned it on, and only for a Claude Code
+ * session that's running in a terminal (one AgentHQ runs gets messages directly).
+ */
+async function handleType(request: IncomingMessage, response: ServerResponse, offices: Office[], home: string) {
+  if (request.method !== 'POST' || !fromOwnPage(request)) return json(response, 403, { error: 'Not allowed' })
+  let body: { sessionId?: unknown; text?: unknown }
+  try {
+    body = JSON.parse(await readBody(request, 64 * 1024)) as typeof body
+  } catch {
+    return json(response, 400, { error: 'Expected {"sessionId": "…", "text": "…"}' })
+  }
+  if (!typingEnabled()) return json(response, 409, { error: 'Typing into terminals is off: turn it on in the settings' })
+  const office = offices.find((candidate) => candidate.sessionId === body.sessionId)
+  if (!office) return json(response, 404, { error: 'No such session in the office' })
+  if (office.kind !== 'claude' || office.managed || office.ended || !office.process)
+    return json(response, 409, { error: 'It doesn’t run in a terminal' })
+  try {
+    const result = await typeInto(home, office.sessionId, typeof body.text === 'string' ? body.text : '')
+    log({ typed: office.sessionId, done: result.done })
+    json(response, 200, result)
+  } catch (error) {
+    json(response, 400, { error: (error as Error).message })
+  }
 }
 
 function json(response: ServerResponse, status: number, body: object) {

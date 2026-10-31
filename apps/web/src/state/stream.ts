@@ -1,6 +1,6 @@
-import type { Ask, Office } from '@agenthq/core'
+import type { Office } from '@agenthq/core'
 import { useEffect } from 'react'
-import { useAsks } from './asks'
+import { useAsks, type Switches } from './asks'
 import { receiveDraft } from './sessions'
 import { useOffices } from './store'
 
@@ -20,7 +20,7 @@ export function useOfficeStream() {
         .then(receive)
         .catch(() => setConnection('offline'))
       fetch('/api/asks', { headers: { 'X-AgentHQ': '1' }, signal: controller.signal })
-        .then((response) => response.json() as Promise<{ enabled: boolean; asks: Ask[] }>)
+        .then((response) => response.json() as Promise<Switches>)
         .then(useAsks.getState().receive)
         .catch(() => undefined)
       return () => controller.abort()
