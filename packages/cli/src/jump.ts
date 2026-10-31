@@ -3,7 +3,7 @@ import { readFileSync, readlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { runningSessions, type JumpResult, type RunningSession } from '@agenthq/core'
+import { runningSessions, sources, type JumpResult, type RunningSession } from '@agenthq/core'
 
 const run = promisify(execFile)
 
@@ -185,7 +185,7 @@ const editorStorage: Record<string, string> = {
 /** A shell-safe way to resume the session where it ran. */
 export function resumeCommand(session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' }): string {
   const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
-  const resume = session.kind === 'codex' ? `codex resume ${session.sessionId}` : `claude --resume ${session.sessionId}`
+  const resume = sources[session.kind ?? 'claude'].resume(session.sessionId)
   return `${session.cwd ? `cd ${quote(session.cwd)} && ` : ''}${resume}`
 }
 

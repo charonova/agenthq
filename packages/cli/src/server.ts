@@ -4,17 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { appendFileSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import {
-  codexHome,
-  discoverCodexOffices,
-  discoverOffices,
-  forgetSessions,
-  readConversation,
-  readReplay,
-  type AskAnswer,
-  type Draft,
-  type Office,
-} from '@agenthq/core'
+import { discoverAll, forgetSessions, readConversation, readReplay, type AskAnswer, type Draft, type Office } from '@agenthq/core'
 import { Asks, type HookInput } from './asks.js'
 import { answeringEnabled, setAnswering, stateDir, writeHookScript } from './hook.js'
 import { jumpTo } from './jump.js'
@@ -45,7 +35,6 @@ const types: Record<string, string> = {
  * (working → coffee → couch).
  */
 export async function startServer({ home, port, ignore }: ServerOptions): Promise<{ url: string; close: () => void }> {
-  const codex = codexHome()
   const clients = new Set<ServerResponse>()
   let latest = ''
   let offices: Office[] = []
@@ -92,13 +81,11 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     if (expected.some((id) => !offices.some((office) => office.sessionId === id))) forgetSessions(home)
     try {
       // Claude Code's offices and Codex's, most recently busy first.
-      offices = [...discoverOffices({ home, ignore }), ...discoverCodexOffices({ home: codex, ignore })]
-        .sort((a, b) => b.updatedAt - a.updatedAt)
-        .map((office) => {
-          const managed = office.kind === 'claude' ? sessions.info(office.sessionId) : null
-          // A session AgentHQ runs is running, whatever its process file says yet.
-          return { ...office, managed, ended: managed ? false : office.ended }
-        })
+      offices = discoverAll({ homes: { claude: home }, ignore }).map((office) => {
+        const managed = office.kind === 'claude' ? sessions.info(office.sessionId) : null
+        // A session AgentHQ runs is running, whatever its process file says yet.
+        return { ...office, managed, ended: managed ? false : office.ended }
+      })
     } catch (error) {
       console.error('Couldn’t read the sessions:', error)
       return

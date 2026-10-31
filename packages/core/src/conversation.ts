@@ -1,5 +1,6 @@
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs'
 import { describeItem } from './codex.js'
+import { sources } from './sources.js'
 import { describeTool } from './tail.js'
 import type { Tool } from './types.js'
 
@@ -103,7 +104,7 @@ export function readConversation(
       }
     }
   }
-  const messages = kind === 'codex' ? codexMessages(range.lines) : claudeMessages(range.lines)
+  const messages = sources[kind].messages(range.lines)
   return { messages, start: range.start, end: range.end }
 }
 

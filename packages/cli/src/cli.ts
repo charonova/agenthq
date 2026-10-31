@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
-import { claudeHome, codexHome, discoverCodexOffices, discoverOffices, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
+import { claudeHome, discoverAll, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
 import type { Agent, Office } from '@agenthq/core'
 
 const args = process.argv.slice(2)
@@ -82,10 +82,7 @@ function ago(time: number): string {
 }
 
 if (args.includes('--list') || args.includes('--json')) {
-  const offices = [
-    ...discoverOffices({ home, ignore: ignoreFrom() }),
-    ...discoverCodexOffices({ home: codexHome(), ignore: ignoreFrom() }),
-  ].sort((a, b) => b.updatedAt - a.updatedAt)
+  const offices = discoverAll({ homes: { claude: home }, ignore: ignoreFrom() })
   if (args.includes('--json')) console.log(JSON.stringify(offices, null, 2))
   else printOffices(offices)
 } else {

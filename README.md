@@ -86,12 +86,12 @@ Only the end of each transcript is read, so multi-gigabyte sessions stay fast; a
 
 A pnpm workspace:
 
-| Package         | What                                                                                            |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `packages/core` | The reader: live sessions → offices (Node, no dependencies)                                     |
-| `packages/cli`  | `@charonova/agenthq`: the command, the local server (Server-Sent Events), and the built web app |
-| `apps/web`      | The office: Vite + React + PixiJS (pixi-viewport for the camera), Zustand for state             |
-| `e2e`           | Playwright tests on a made-up `~/.claude`                                                       |
+| Package         | What                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/core` | The reader: live sessions → offices (Node, no dependencies); each agent CLI is a source (`sources.ts`) |
+| `packages/cli`  | `@charonova/agenthq`: the command, the local server (Server-Sent Events), and the built web app        |
+| `apps/web`      | The office: Vite + React + PixiJS (pixi-viewport for the camera), Zustand for state                    |
+| `e2e`           | Playwright tests on a made-up `~/.claude`                                                              |
 
 ```bash
 pnpm install

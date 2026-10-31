@@ -1,7 +1,8 @@
 import { describeItem } from './codex.js'
 import { readRange } from './conversation.js'
+import { sources } from './sources.js'
 import { describeTool } from './tail.js'
-import type { Tool } from './types.js'
+import type { Office, Tool } from './types.js'
 
 /**
  * A session's last hours, for replaying as a time-lapse: each agent's steps (a prompt, a tool
@@ -110,7 +111,7 @@ export function replaySteps(lines: string[], kind: 'claude' | 'codex', since = 0
 /** A session's last `hours`, for its agents. */
 export function readReplay(
   sessionId: string,
-  kind: 'claude' | 'codex',
+  kind: Office['kind'],
   agents: { id: string; transcript: string }[],
   hours: number,
   now = Date.now(),
@@ -122,7 +123,7 @@ export function readReplay(
     to: now,
     agents: agents.map((agent) => {
       try {
-        return { id: agent.id, steps: replaySteps(readRecent(agent.transcript, from), kind, from) }
+        return { id: agent.id, steps: sources[kind].steps(readRecent(agent.transcript, from), from) }
       } catch {
         return { id: agent.id, steps: [] }
       }
