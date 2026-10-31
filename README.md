@@ -36,6 +36,12 @@ Or install it: `npm install -g @charonova/agenthq`, then `agenthq`.
     <td align="center"><sub><b>The building</b> · every live session, on one map</sub></td>
     <td align="center"><sub><b>An office</b> · click anyone for their task, tool, model and context</sub></td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="docs/media/conversation.png" alt="An agent's conversation open over its office: the prompt, a Markdown reply, a command with its output, and a teammate's message"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub><b>A conversation</b> · anyone's full chat, live, with every tool call and its output</sub></td>
+  </tr>
 </table>
 
 The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
@@ -45,7 +51,8 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 - **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture.
 - **It tells you when someone needs you**: a desktop notification and a chime when an agent starts waiting for you (🔔 in the header); click it to jump there. The tab title shows how many are waiting, and the **✋ need you** counter goes to each in turn. Optionally, also when a session finishes.
 - **A timeline per agent**: its latest tool calls, with times, under its details.
-- **Go straight to a session**: double-click anyone (or **Go to session ↗** in their details) and its window comes forward: the exact tab in Terminal or iTerm2, the project's window in VS Code, Cursor or Windsurf, or the app it runs in (macOS). Elsewhere, or when it can't, the command that resumes the session is copied for you.
+- **💬 The whole conversation**: open anyone's conversation, manager, teammate or helper, Claude Code or Codex: your prompts, its replies, every tool call with its input and output, messages between teammates. It follows along live, loads older messages as you scroll up (even in multi-gigabyte sessions), and you can search it. Read only for now: answering from AgentHQ is next.
+- **Go straight to a session**: double-click anyone (or **Go to ↗** in their details) and its window comes forward: the exact tab in Terminal or iTerm2, the project's window in VS Code, Cursor or Windsurf, or the app it runs in (macOS). Elsewhere, or when it can't, the command that resumes the session is copied for you.
 - **Codex too**: each Codex thread is an office, with its sub-agents (like the guardian) as staff, named as in Codex's app.
 - **Day and night** follow your clock.
 
@@ -63,7 +70,7 @@ AgentHQ only **reads** what Claude Code writes in `~/.claude`; it never runs or 
 | Where a session runs | `~/.claude/sessions/<pid>.json` (which process runs which session), then the app above that process                               |
 | Codex                | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` (a sub-agent's thread names its parent), names from `~/.codex/session_index.jsonl` |
 
-Only the end of each transcript is read, so multi-gigabyte sessions stay fast. Settings: `AGENTHQ_JUMP=copy` makes "go to session" only copy the resume command; `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag2` leaves out sessions whose folder contains those (claude-mem's background sessions are left out by default).
+Only the end of each transcript is read, so multi-gigabyte sessions stay fast; a conversation is read a page (192 KB) at a time, as you scroll. Settings: `AGENTHQ_JUMP=copy` makes "go to session" only copy the resume command; `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag2` leaves out sessions whose folder contains those (claude-mem's background sessions are left out by default).
 
 ## Develop
 

@@ -18,6 +18,7 @@ const agent = (overrides: Partial<Agent>): Agent => ({
   contextTokens: null,
   history: [],
   updatedAt: 0,
+  transcript: '/tmp/t.jsonl',
   ...overrides,
 })
 

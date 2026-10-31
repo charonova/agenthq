@@ -50,6 +50,35 @@ const result = (cwd, now, ago) =>
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }] },
   })
 
+const say = (cwd, now, ago, text) =>
+  line({
+    type: 'assistant',
+    cwd,
+    timestamp: iso(now, ago),
+    message: { role: 'assistant', content: [{ type: 'text', text }], usage },
+  })
+const call = (cwd, now, ago, id, name, input) =>
+  line({
+    type: 'assistant',
+    cwd,
+    timestamp: iso(now, ago),
+    message: { role: 'assistant', content: [{ type: 'tool_use', id, name, input }], usage },
+  })
+const reply = (cwd, now, ago, id, text) =>
+  line({
+    type: 'user',
+    cwd,
+    timestamp: iso(now, ago),
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: text }] },
+  })
+const teammateSays = (cwd, now, ago, from, color, summary, text) =>
+  prompt(
+    cwd,
+    now,
+    ago,
+    `<teammate-message teammate_id="${from}" color="${color}" summary="${summary}">${text}</teammate-message>`,
+  )
+
 /**
  * `pid`: a live process to stand for Claude Code's (the caller's own), so the sessions count as
  * running, each with the status Claude Code would report.
@@ -89,7 +118,14 @@ export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
     'shop',
     'session-shop',
     'Add CSV export to orders',
-    (cwd) => [prompt(cwd, now, 900, 'add a CSV export'), done(cwd, now, 400)],
+    (cwd) => [
+      prompt(cwd, now, 900, 'add a CSV export'),
+      say(cwd, now, 880, '## Plan\n\n1. **api** writes `src/export.ts`\n2. **qa** adds the tests\n\nStarting the team now.'),
+      call(cwd, now, 870, 'toolu_ls', 'Bash', { command: 'ls src', description: 'List the sources' }),
+      reply(cwd, now, 869, 'toolu_ls', 'orders.ts\nexport.ts'),
+      teammateSays(cwd, now, 600, 'qa', 'green', 'Tests pass', 'All 12 export tests pass on main.'),
+      done(cwd, now, 400),
+    ],
     400,
   )
   shop('aapi-1', teammate('api', 'blue'), (cwd) => [tool(cwd, now, 2, 'Edit', { file_path: `${cwd}/src/export.ts` })], 2)

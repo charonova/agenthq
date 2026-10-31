@@ -76,6 +76,8 @@ export interface Agent {
   history: Step[]
   /** When its transcript last changed. */
   updatedAt: number
+  /** Its transcript file, for reading its conversation (server side only uses it). */
+  transcript: string
 }
 
 /** One live session (Claude Code or Codex): an office. */

@@ -1,5 +1,6 @@
 import type { Agent, Office } from '@agenthq/core'
 import { activityIcon, agoText, describe, stateEmoji } from '../scene/plan'
+import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
 import { useNow } from './useNow'
@@ -101,6 +102,7 @@ function OfficePanel({ office }: { office: Office }) {
 }
 
 function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: string; status?: string | null; now: number }) {
+  const showChat = useChat((state) => state.show)
   const items: [string, string | null][] = [
     ['Doing', describe(agent, now)],
     ['Task', agent.task],
@@ -116,12 +118,15 @@ function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: s
         <h4>
           {stateEmoji(agent)} {agent.role === 'manager' ? 'Manager' : agent.name}
         </h4>
+        <button className="go chat-open" onClick={() => showChat(sessionId, agent.id)} title="Read its whole conversation">
+          💬 Conversation
+        </button>
         <button
-          className="go"
+          className="go jump"
           onClick={() => void goToSession(sessionId)}
           title="Bring its terminal or editor window forward (or double-click them)"
         >
-          Go to session ↗
+          Go to ↗
         </button>
       </div>
       <dl>

@@ -363,6 +363,7 @@ export function discoverCodexOffices(options: DiscoverCodexOptions = {}): Office
       contextTokens: tail.contextTokens,
       history: tail.history,
       updatedAt: rollout.modified,
+      transcript: rollout.path,
     }
   }
 

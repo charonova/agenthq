@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { watch, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { codexHome, discoverCodexOffices, discoverOffices, type Office } from '@agenthq/core'
+import { codexHome, discoverCodexOffices, discoverOffices, readConversation, type Office } from '@agenthq/core'
 import { jumpTo } from './jump.js'
 
 export interface ServerOptions {
@@ -87,6 +87,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       await handleJump(request, response, offices, home)
       return
     }
+    if (url.pathname === '/api/conversation') {
+      handleConversation(request, response, url, offices)
+      return
+    }
     if (url.pathname === '/api/offices') {
       response.writeHead(200, { 'Content-Type': 'application/json' })
       response.end(latest || '[]')
@@ -158,10 +162,7 @@ async function handleJump(request: IncomingMessage, response: ServerResponse, of
     response.writeHead(status, { 'Content-Type': 'application/json' })
     response.end(JSON.stringify(body))
   }
-  const host = (request.headers.host ?? '').replace(/:\d+$/, '')
-  if (request.method !== 'POST' || request.headers['x-agenthq'] !== '1' || !['localhost', '127.0.0.1', '[::1]'].includes(host)) {
-    return reply(403, { error: 'Not allowed' })
-  }
+  if (request.method !== 'POST' || !fromOwnPage(request)) return reply(403, { error: 'Not allowed' })
   let sessionId: unknown
   try {
     sessionId = (JSON.parse(await readBody(request)) as { sessionId?: unknown }).sessionId
@@ -171,6 +172,38 @@ async function handleJump(request: IncomingMessage, response: ServerResponse, of
   const office = offices.find((candidate) => candidate.sessionId === sessionId)
   if (!office) return reply(404, { error: 'No such session in the office' })
   reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd, kind: office.kind }))
+}
+
+/** Only the office's own page: the `X-AgentHQ` header (needs a CORS preflight elsewhere) to a localhost `Host` (no DNS rebinding). */
+function fromOwnPage(request: IncomingMessage): boolean {
+  const host = (request.headers.host ?? '').replace(/:\d+$/, '')
+  return request.headers['x-agenthq'] === '1' && ['localhost', '127.0.0.1', '[::1]'].includes(host)
+}
+
+/**
+ * `GET /api/conversation?session=…&agent=…[&before=…|&since=…]`: a page of an agent's
+ * conversation, read from its transcript. Only for an agent in the office right now, so the
+ * page can never name a file: the server picks it.
+ */
+function handleConversation(request: IncomingMessage, response: ServerResponse, url: URL, offices: Office[]) {
+  const reply = (status: number, body: object) => {
+    response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+    response.end(JSON.stringify(body))
+  }
+  if (request.method !== 'GET' || !fromOwnPage(request)) return reply(403, { error: 'Not allowed' })
+  const office = offices.find((candidate) => candidate.sessionId === url.searchParams.get('session'))
+  const agentId = url.searchParams.get('agent')
+  const agent = office && [office.manager, ...office.staff, ...office.interns].find((candidate) => candidate.id === agentId)
+  if (!office || !agent) return reply(404, { error: 'No such agent in the office' })
+  const offset = (name: string) => {
+    const value = url.searchParams.get(name)
+    return value !== null && /^\d{1,15}$/.test(value) ? Number(value) : undefined
+  }
+  try {
+    reply(200, readConversation(agent.transcript, office.kind, { before: offset('before'), since: offset('since') }))
+  } catch {
+    reply(404, { error: 'Its transcript can’t be read' })
+  }
 }
 
 function readBody(request: IncomingMessage, limit = 4096): Promise<string> {

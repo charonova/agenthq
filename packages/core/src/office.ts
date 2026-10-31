@@ -232,6 +232,7 @@ function buildOffice(input: BuildInput): Office {
     contextTokens: leadTail.contextTokens,
     history: leadTail.history,
     updatedAt: modified,
+    transcript: sessionPath,
   }
 
   const staff: Agent[] = []
@@ -285,6 +286,7 @@ function buildOffice(input: BuildInput): Office {
       contextTokens: tail.contextTokens,
       history: tail.history,
       updatedAt: updated,
+      transcript: path,
     }
     agent.activity = activityOf(agent.state, tail)
     ;(role === 'staff' ? staff : interns).push(agent)

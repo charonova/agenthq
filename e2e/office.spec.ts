@@ -58,7 +58,7 @@ test('going to a session that can’t be opened copies the command that resumes 
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/#/office/session-shop')
   await page.locator('.person', { hasText: 'api' }).first().click()
-  await page.locator('.go').click()
+  await page.locator('.go.jump').click()
   // The made-up sessions aren't running anywhere: the command comes instead.
   await expect(page.locator('.toast')).toContainText('claude --resume session-shop')
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
@@ -81,6 +81,47 @@ test('a Codex thread is an office too, with its sub-agents as staff', async ({ p
   await expect(page.locator('.person', { hasText: 'Manager' })).toContainText('Login.tsx')
   await expect(page.locator('.person', { hasText: 'guardian' })).toContainText('pnpm test')
   await page.locator('.person', { hasText: 'Manager' }).click()
-  await page.locator('.go').click()
+  await page.locator('.go.jump').click()
   await expect(page.locator('.toast')).toContainText('codex resume codex-mobile')
+})
+
+test('an agent’s whole conversation: prompts, replies, tools with their output, teammates, and search', async ({ page }) => {
+  await page.goto('/#/office/session-shop')
+  await page.locator('.person', { hasText: 'Manager' }).click()
+  await page.locator('.chat-open').click()
+  const chat = page.locator('.chat')
+  await expect(chat.locator('h3')).toHaveText('Manager')
+  await expect(chat.locator('.msg.user').first()).toContainText('add a CSV export')
+  // Markdown becomes elements, not HTML.
+  await expect(chat.locator('.msg.assistant .md .h').first()).toHaveText('Plan')
+  await expect(chat.locator('.msg.assistant code').first()).toHaveText('src/export.ts')
+  await expect(chat.locator('.msg.agent')).toContainText('All 12 export tests pass on main.')
+  await expect(chat.locator('.msg.agent .meta')).toContainText('From qa')
+  const tool = chat.locator('.tool', { hasText: 'List the sources' })
+  await tool.locator('summary').click()
+  await expect(tool.locator('pre.output')).toHaveText(/orders\.ts/)
+  await expect(chat.locator('.chat-note')).toContainText(['The beginning of the conversation'])
+  await page.screenshot({ path: 'test-results/conversation.png' })
+
+  await chat.locator('input[type=search]').fill('tests pass')
+  await expect(chat.locator('.msg')).toHaveCount(2)
+  await page.keyboard.press('Escape')
+  await expect(chat).toHaveCount(0)
+})
+
+test('the conversation endpoint answers only the office’s own page, for agents in the office', async ({ request }) => {
+  const ok = await request.get('/api/conversation?session=session-shop&agent=session-shop', { headers: { 'X-AgentHQ': '1' } })
+  expect(ok.status()).toBe(200)
+  expect(((await ok.json()) as { messages: unknown[] }).messages.length).toBeGreaterThan(3)
+  expect((await request.get('/api/conversation?session=session-shop&agent=session-shop')).status()).toBe(403)
+  expect(
+    (await request.get('/api/conversation?session=session-shop&agent=nobody', { headers: { 'X-AgentHQ': '1' } })).status(),
+  ).toBe(404)
+})
+
+test('Codex threads have conversations too', async ({ page }) => {
+  await page.goto('/#/office/codex-mobile')
+  await page.locator('.person').first().click()
+  await page.locator('.chat-open').click()
+  await expect(page.locator('.chat .tool').first()).toContainText('rg useAuth')
 })

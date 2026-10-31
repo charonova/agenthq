@@ -12,3 +12,13 @@ export {
   readThread,
   type DiscoverCodexOptions,
 } from './codex.js'
+export {
+  PAGE_BYTES,
+  claudeMessages,
+  codexMessages,
+  readConversation,
+  readRange,
+  type ConversationPage,
+  type Message,
+  type ToolResult,
+} from './conversation.js'

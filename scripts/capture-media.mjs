@@ -41,6 +41,11 @@ try {
   await still.locator('.person', { hasText: 'api' }).first().click()
   await sleep(500)
   await still.screenshot({ path: `${out}/office.png` })
+  await still.locator('.person', { hasText: 'Manager' }).click()
+  await still.locator('.chat-open').click()
+  await still.locator('.chat .tool summary').first().click()
+  await sleep(400)
+  await still.screenshot({ path: `${out}/conversation.png` })
   await still.close()
 
   // The story, through Chrome's own screen stream (every frame the page paints), then a GIF.
@@ -97,7 +102,7 @@ try {
   ])
   console.log(`${frames} frames in ${seconds.toFixed(1)} s`)
   rmSync(framesDir, { recursive: true, force: true })
-  console.log(`Saved ${out}/building.png, ${out}/office.png and ${out}/office.gif`)
+  console.log(`Saved ${out}/building.png, ${out}/office.png, ${out}/conversation.png and ${out}/office.gif`)
 } finally {
   server.kill()
   rmSync(home, { recursive: true, force: true })
