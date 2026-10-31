@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { claudeHome, discoverAll, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
 import type { Agent, Office } from '@agenthq/core'
+import { loadPlugins, pluginsWanted } from './plugins.js'
 
 const args = process.argv.slice(2)
 const home = claudeHome()
@@ -26,6 +27,7 @@ Options:
   --port <n>        serve on another port (the next free one if it's taken)
   --no-open         don't open the browser
   --version         print the version
+  --plugins         load more agent sources from ~/.agenthq/plugins (or AGENTHQ_PLUGINS=1)
 
 Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder) and Codex's folder (CODEX_HOME). Only
 reads them, unless you turn on answering from AgentHQ (⚙️ Settings in the page): that adds one hook to
@@ -35,6 +37,12 @@ Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves o
 AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it (and typing only copies).
 Sessions you start from the page run your own Claude Code (\`claude\` on your PATH, or AGENTHQ_CLAUDE_PATH).`)
   process.exit(0)
+}
+
+if (pluginsWanted(args)) {
+  const { loaded, failed } = await loadPlugins()
+  if (loaded.length) console.error(`Plugins: ${loaded.join(', ')}`)
+  for (const { file, why } of failed) console.error(`Plugin ${file} wasn’t loaded: ${why}`)
 }
 
 if (!looksLikeClaudeHome(home)) {
@@ -50,7 +58,7 @@ function printOffices(offices: Office[]): void {
   for (const office of offices) {
     const busy = [office.manager, ...office.staff, ...office.interns].filter((a) => a.state === 'working').length
     console.log(
-      `\n🏢 ${office.kind === 'codex' ? '[Codex] ' : ''}${office.project}${office.title ? ` · ${office.title}` : ''}  (${busy} working)`,
+      `\n🏢 ${office.kind === 'codex' ? '[Codex] ' : office.kind !== 'claude' ? `[${office.label ?? office.kind}] ` : ''}${office.project}${office.title ? ` · ${office.title}` : ''}  (${busy} working)`,
     )
     console.log(`   ${line(office.manager)}`)
     for (const member of office.staff) {

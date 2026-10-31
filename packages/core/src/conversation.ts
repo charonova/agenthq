@@ -1,6 +1,6 @@
 import { closeSync, fstatSync, openSync, readSync } from 'node:fs'
 import { describeItem } from './codex.js'
-import { sources } from './sources.js'
+import { sourceOf } from './sources.js'
 import { describeTool } from './tail.js'
 import type { Tool } from './types.js'
 
@@ -79,11 +79,7 @@ export function readRange(path: string, from: number, to: number): { lines: stri
 }
 
 /** A page of a conversation: the newest one, the one `before` an offset, or what came `since` one. */
-export function readConversation(
-  path: string,
-  kind: 'claude' | 'codex',
-  page: { before?: number; since?: number } = {},
-): ConversationPage {
+export function readConversation(path: string, kind: string, page: { before?: number; since?: number } = {}): ConversationPage {
   let range: ReturnType<typeof readRange>
   if (page.since !== undefined) {
     range = readRange(path, page.since, Number.MAX_SAFE_INTEGER)
@@ -104,7 +100,7 @@ export function readConversation(
       }
     }
   }
-  const messages = sources[kind].messages(range.lines)
+  const messages = sourceOf(kind)?.messages(range.lines) ?? []
   return { messages, start: range.start, end: range.end }
 }
 

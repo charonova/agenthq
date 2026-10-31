@@ -274,3 +274,16 @@ test('replay an office’s last hours as a time-lapse', async ({ page, request }
   await bar.getByRole('button', { name: 'Back to live' }).click()
   await expect(bar).toHaveCount(0)
 })
+
+test('a plugin’s agent gets an office too, with its conversation', async ({ page }) => {
+  await page.goto('/')
+  const row = page.locator('.office-row', { hasText: 'garden' })
+  await expect(row).toContainText('hello agent')
+  await row.click()
+  await expect(page.locator('.office-head')).toContainText('garden')
+  await expect(page.locator('.person', { hasText: 'Manager' })).toContainText('plants.ts')
+  await page.locator('.person', { hasText: 'Manager' }).click()
+  await page.locator('.chat-open').click()
+  await expect(page.locator('.chat .msg.user')).toContainText('Water the plants')
+  await expect(page.locator('.chat .chat-foot')).toContainText('Answer Hello Agent in its session')
+})

@@ -1,5 +1,5 @@
 import type { Agent, Office } from '@agenthq/core'
-import { activityIcon, agoText, describe, stateEmoji, tokensText } from '../scene/plan'
+import { activityIcon, agoText, describe, sourceLabel, stateEmoji, tokensText } from '../scene/plan'
 import { useAsks } from '../state/asks'
 import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
@@ -42,7 +42,7 @@ function BuildingPanel({ offices }: { offices: Office[] }) {
               <span className="text">
                 <span className="who">
                   {office.project}
-                  {office.kind === 'codex' && <small>codex</small>}
+                  {sourceLabel(office) && <small>{sourceLabel(office)!.toLowerCase()}</small>}
                   {office.managed && <small className="here">runs here</small>}
                   {office.ended && <small>ended</small>}
                 </span>

@@ -3,7 +3,7 @@ import { readFileSync, readlinkSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
-import { runningSessions, sources, type JumpResult, type RunningSession } from '@agenthq/core'
+import { runningSessions, sourceOf, type JumpResult, type RunningSession } from '@agenthq/core'
 
 const run = promisify(execFile)
 
@@ -183,9 +183,9 @@ const editorStorage: Record<string, string> = {
 }
 
 /** A shell-safe way to resume the session where it ran. */
-export function resumeCommand(session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' }): string {
+export function resumeCommand(session: { sessionId: string; cwd: string | null; kind?: string }): string {
   const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
-  const resume = sources[session.kind ?? 'claude'].resume(session.sessionId)
+  const resume = (sourceOf(session.kind ?? 'claude') ?? sourceOf('claude')!).resume(session.sessionId)
   return `${session.cwd ? `cd ${quote(session.cwd)} && ` : ''}${resume}`
 }
 
@@ -193,7 +193,7 @@ export function resumeCommand(session: { sessionId: string; cwd: string | null; 
 export function planJump(
   platform: NodeJS.Platform,
   host: Host | null,
-  session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' },
+  session: { sessionId: string; cwd: string | null; kind?: string },
 ): JumpAction {
   const copy: JumpAction = { kind: 'copy', command: resumeCommand(session) }
   // Linux and Windows: an editor's window, by opening its folder; a terminal's tab can't be picked from outside.
@@ -403,7 +403,7 @@ async function hostFor(pid: number): Promise<Host | null> {
  */
 export async function jumpTo(
   home: string,
-  session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' },
+  session: { sessionId: string; cwd: string | null; kind?: string },
 ): Promise<JumpResult> {
   // AGENTHQ_JUMP=copy: never open windows, only copy the command (tests, or a preference).
   if (process.env.AGENTHQ_JUMP === 'copy') {

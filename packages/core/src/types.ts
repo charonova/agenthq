@@ -117,8 +117,10 @@ export interface TeamTask {
 
 /** One live session (Claude Code or Codex): an office. */
 export interface Office {
-  /** Which agent runs it. */
-  kind: 'claude' | 'codex'
+  /** Which agent runs it: Claude Code, Codex, or a plugin's source (its own `kind`). */
+  kind: 'claude' | 'codex' | (string & {})
+  /** A plugin source's name, for its offices ("Gemini"…). */
+  label?: string
   sessionId: string
   project: string
   cwd: string | null

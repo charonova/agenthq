@@ -1,6 +1,6 @@
 import { describeItem } from './codex.js'
 import { readRange } from './conversation.js'
-import { sources } from './sources.js'
+import { sourceOf } from './sources.js'
 import { describeTool } from './tail.js'
 import type { Office, Tool } from './types.js'
 
@@ -123,7 +123,7 @@ export function readReplay(
     to: now,
     agents: agents.map((agent) => {
       try {
-        return { id: agent.id, steps: sources[kind].steps(readRecent(agent.transcript, from), from) }
+        return { id: agent.id, steps: sourceOf(kind)?.steps(readRecent(agent.transcript, from), from) ?? [] }
       } catch {
         return { id: agent.id, steps: [] }
       }

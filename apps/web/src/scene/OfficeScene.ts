@@ -5,7 +5,7 @@ import { lookFor, type Look, type LookChoice, type Pose } from './art/people'
 import { MANAGER_DESK, T, W, blockedTiles, deskOf, door, props, roomHeight, seatAt, type Point } from './layout'
 import { SEATED, SIT_DROP, doorOpen, stepSeat } from './motion'
 import { findPath } from './path'
-import { planOffice, talkLines, type Spot } from './plan'
+import { planOffice, sourceLabel, talkLines, type Spot } from './plan'
 import { PERSON, animatedProps, deskTexture, doorTexture, meetingTableTexture, personTexture, roomTexture } from './textures'
 
 const WALK_SPEED = 42 // art pixels per second
@@ -303,7 +303,7 @@ export class OfficeScene extends Container {
       group.position.set(x, y)
       this.labels.addChild(group)
     }
-    tag(office.kind === 'codex' ? 'Codex' : 'Manager', MANAGER_DESK.tx * T + 20, MANAGER_DESK.ty * T + 17, '#ffd479')
+    tag(sourceLabel(office) ?? 'Manager', MANAGER_DESK.tx * T + 20, MANAGER_DESK.ty * T + 17, '#ffd479')
     office.staff.forEach((agent, i) => {
       const { tx, ty } = deskOf(i)
       tag(agent.name, tx * T + 16, ty * T + 17, '#e8ecf3')

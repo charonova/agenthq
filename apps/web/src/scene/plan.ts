@@ -221,6 +221,12 @@ export function describe(agent: Agent, now = Date.now()): string {
   }
 }
 
+/** Who runs an office when it isn't Claude Code: "Codex", or a plugin's name. */
+export function sourceLabel(office: Pick<Office, 'kind' | 'label'>): string | null {
+  if (office.kind === 'claude') return null
+  return office.kind === 'codex' ? 'Codex' : (office.label ?? office.kind)
+}
+
 /** A count of tokens, short: 950, 12k, 3.4M. */
 export function shortCount(n: number): string {
   if (n < 1000) return String(Math.round(n))

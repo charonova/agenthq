@@ -1,5 +1,6 @@
 import type { Office } from '@agenthq/core'
 import { useState } from 'react'
+import { sourceLabel } from '../scene/plan'
 import { useAsks } from '../state/asks'
 import { endSession, interrupt, sendMessage, typeIntoTerminal } from '../state/sessions'
 
@@ -21,8 +22,8 @@ export function Composer({ office, isManager }: { office: Office; isManager: boo
   if (!canSend) {
     return (
       <footer className="chat-foot">
-        {office.kind === 'codex'
-          ? 'Answer Codex in its session (“Go to session”).'
+        {office.kind !== 'claude'
+          ? `Answer ${sourceLabel(office)} in its session (“Go to session”).`
           : !isManager
             ? 'Messages go to the manager: open its conversation to write one.'
             : `It runs in a terminal: message it there (“Go to session”)${

@@ -1,6 +1,6 @@
 import type { Agent, ConversationPage, Message, Office } from '@agenthq/core'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { activityIcon, stateEmoji } from '../scene/plan'
+import { activityIcon, sourceLabel, stateEmoji } from '../scene/plan'
 import { useAsks } from '../state/asks'
 import { addPage, emptyLoaded, fetchPage, landed, matches, useChat, type Loaded } from '../state/conversation'
 import { goToSession } from '../state/jump'
@@ -21,9 +21,7 @@ export function ChatPanel() {
 
 const nameOf = (agent: Agent, office: Office) =>
   agent.role === 'manager'
-    ? office.kind === 'codex'
-      ? 'Codex'
-      : 'Manager'
+    ? (sourceLabel(office) ?? 'Manager')
     : agent.role === 'intern'
       ? (agent.task ?? agent.name)
       : agent.name
@@ -158,7 +156,7 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
           <h3>{name}</h3>
           <p>
             {agent.role} · {office.project}
-            {office.kind === 'codex' ? ' · Codex' : ''}
+            {sourceLabel(office) ? ` · ${sourceLabel(office)}` : ''}
           </p>
         </div>
         <button className="go" onClick={() => void goToSession(office.sessionId)} title="Answer it in its terminal or editor">
