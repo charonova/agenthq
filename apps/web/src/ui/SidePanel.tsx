@@ -23,9 +23,12 @@ function BuildingPanel({ offices }: { offices: Office[] }) {
           const waiting = agents.filter((a) => a.state === 'waiting').length
           return (
             <button key={office.sessionId} className="row office-row" onClick={() => focus(office.sessionId)}>
-              <span className={`light ${waiting ? 'waiting' : working ? 'busy' : ''}`} />
+              <span className={`light ${office.ended ? 'ended' : waiting ? 'waiting' : working ? 'busy' : ''}`} />
               <span className="text">
-                <span className="who">{office.project}</span>
+                <span className="who">
+                  {office.project}
+                  {office.ended && <small>ended</small>}
+                </span>
                 <span className="what">{office.title ?? 'Untitled session'}</span>
               </span>
               <span className="counts">
@@ -84,12 +87,19 @@ function OfficePanel({ office }: { office: Office }) {
         {internsOf(office.sessionId).map((intern) => row(intern, 'intern'))}
         {office.staff.map((member) => [row(member, 'staff'), ...internsOf(member.id).map((intern) => row(intern, 'intern'))])}
       </div>
-      {selected && <Details agent={selected} sessionId={office.sessionId} now={now} />}
+      {selected && (
+        <Details
+          agent={selected}
+          sessionId={office.sessionId}
+          status={office.ended ? 'ended' : office.process?.status}
+          now={now}
+        />
+      )}
     </>
   )
 }
 
-function Details({ agent, sessionId, now }: { agent: Agent; sessionId: string; now: number }) {
+function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: string; status?: string | null; now: number }) {
   const items: [string, string | null][] = [
     ['Doing', describe(agent, now)],
     ['Task', agent.task],
@@ -97,6 +107,7 @@ function Details({ agent, sessionId, now }: { agent: Agent; sessionId: string; n
     ['Model', agent.model],
     ['Context', agent.contextTokens ? `${Math.round(agent.contextTokens / 1000)}k tokens` : null],
     ['Last seen', agoText(agent.updatedAt, now)],
+    ['Claude Code', agent.role === 'manager' ? (status ?? null) : null],
   ]
   return (
     <div className="details">

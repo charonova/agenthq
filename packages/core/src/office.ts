@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { stateOf } from './state.js'
+import { runningSessions, type RunningSession } from './processes.js'
+import { applyStatus, stateOf } from './state.js'
 import { readHeadLines, readTail, readTailLines } from './tail.js'
 import type { Activity, Agent, Office, Role, Tail } from './types.js'
 
@@ -19,6 +20,8 @@ export interface DiscoverOptions {
   deskFor?: number
   /** Sessions whose folder contains any of these are left out (other tools' background sessions). */
   ignore?: string[]
+  /** Whether a process is alive (tests stand in for the real check). */
+  alive?: (pid: number) => boolean
 }
 
 /** Background sessions other tools run through Claude Code, which aren't anyone's office. */
@@ -165,13 +168,30 @@ export function discoverOffices(options: DiscoverOptions = {}): Office[] {
   const deskFor = options.deskFor ?? 3 * 60 * 60_000
   const ignore = options.ignore ?? defaultIgnore
   const offices: Office[] = []
+  // Which sessions have a Claude Code process right now. Older Claude Code doesn't keep these
+  // files: then nothing counts as ended.
+  const running = runningSessions(home, options.alive)
+  const tracksProcesses = existsSync(join(home, 'sessions'))
 
   for (const candidate of candidates(home, now)) {
     const { folder, sessionId, sessionPath, subagentsDir } = candidate
     const subagentFiles = list(subagentsDir).filter((name) => name.endsWith('.jsonl'))
     const newest = Math.max(mtime(sessionPath), ...subagentFiles.map((name) => mtime(join(subagentsDir, name))))
-    if (now - newest > liveFor) continue
-    const office = buildOffice({ sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor })
+    const owner = running.get(sessionId)
+    // A running session stays in the building however long it waits; others close after a while.
+    if (now - newest > liveFor && !owner) continue
+    const office = buildOffice({
+      sessionId,
+      sessionPath,
+      folder,
+      subagentsDir,
+      subagentFiles,
+      now,
+      liveFor,
+      deskFor,
+      owner,
+      ended: tracksProcesses && !owner,
+    })
     const where = office.cwd ?? join(home, 'projects', folder)
     if (ignore.some((fragment) => where.includes(fragment) || folder.includes(fragment.replace(/\//g, '-')))) continue
     offices.push(office)
@@ -188,10 +208,13 @@ interface BuildInput {
   now: number
   liveFor: number
   deskFor: number
+  /** The Claude Code process running the session, if any. */
+  owner: RunningSession | undefined
+  ended: boolean
 }
 
 function buildOffice(input: BuildInput): Office {
-  const { sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor } = input
+  const { sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor, owner, ended } = input
   const modified = mtime(sessionPath)
   const leadTail = tailOf(sessionPath, true)
   const manager: Agent = {
@@ -202,7 +225,7 @@ function buildOffice(input: BuildInput): Office {
     parentId: null,
     task: leadTail.title,
     model: leadTail.model,
-    ...stateOf({ tail: leadTail, modified, now }),
+    ...applyStatus(stateOf({ tail: leadTail, modified, now }), leadTail, owner?.status, { modified, now, ended }),
     activity: null,
     tool: leadTail.tool,
     lastText: leadTail.lastText,
@@ -249,7 +272,13 @@ function buildOffice(input: BuildInput): Office {
       parentId: role === 'intern' ? (meta.parentAgentId ?? sessionId) : null,
       task: meta.description ?? null,
       model: meta.model ?? tail.model,
-      ...stateOf({ tail, modified: updated, now, permissionMode: meta.permissionMode ?? tail.permissionMode ?? modeOf(id) }),
+      // Teammates run inside the lead's process: when it has ended, so has their work.
+      ...applyStatus(
+        stateOf({ tail, modified: updated, now, permissionMode: meta.permissionMode ?? tail.permissionMode ?? modeOf(id) }),
+        tail,
+        null,
+        { modified: updated, now, ended },
+      ),
       activity: null,
       tool: tail.tool,
       lastText: tail.lastText,
@@ -275,6 +304,8 @@ function buildOffice(input: BuildInput): Office {
     staff,
     interns,
     wentHome,
+    process: owner ? { pid: owner.pid, status: owner.status } : null,
+    ended,
     updatedAt: Math.max(modified, ...staff.map((a) => a.updatedAt), ...interns.map((a) => a.updatedAt)),
   }
 }

@@ -284,6 +284,9 @@ button {
   background: var(--green);
   box-shadow: 0 0 8px var(--green);
 }
+.light.ended {
+  background: #3a3d4a;
+}
 .light.waiting {
   background: var(--yellow);
   box-shadow: 0 0 8px var(--yellow);

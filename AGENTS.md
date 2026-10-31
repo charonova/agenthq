@@ -37,6 +37,8 @@ AgentHQ turns live Claude Code sessions into a 2D pixel-art office: one office p
 - **Tests and screenshots never use real transcripts or names.** Use made-up data shaped like the real thing (`e2e/fixture-home.mjs`).
 - **`POST /api/jump` is guarded**: POST only, the `X-AgentHQ: 1` header (other sites can't send it without a CORS preflight, never answered), a localhost `Host` (no DNS rebinding), and only sessions in the office. It runs programs directly (`osascript`, `open`, `ps`), never a shell; a tty goes into AppleScript only as `ttys123`.
 - **Never read `~/.claude/sessions/*.key`**: they're secrets. Only `<pid>.json`.
+- **Claude Code's own `status` beats guessing, for the lead only** (`applyStatus`): `busy` → working (a pending tool is running); `idle` with a pending tool → waiting for you; `idle` otherwise → its turn is over. Other words (`shell`…) leave the guess from the transcript's quiet time alone. A session with no process (where `~/.claude/sessions` exists) has ended: nobody in it works or waits. A running session stays in the building however long it's quiet.
+- **Tests never open real windows**: the e2e server runs with `AGENTHQ_JUMP=copy`.
 - **The server listens on 127.0.0.1 only.** Text from transcripts reaches the page as text (React children, Pixi `Text`), never as HTML.
 - **Idle costs little.** The scene runs at 30 fps at most and stops in a hidden tab; art is drawn once into textures, and each frame only swaps them.
 - **Pure logic stays out of PixiJS.** Layout, paths and plans are plain functions with tests; the scene only draws what they decide.

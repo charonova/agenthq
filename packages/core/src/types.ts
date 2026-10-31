@@ -89,6 +89,10 @@ export interface Office {
   interns: Agent[]
   /** Helpers that finished and left, counted only. */
   wentHome: number
+  /** The Claude Code process running it, when there is one: its id and what it says it's doing. */
+  process: { pid: number; status: string | null } | null
+  /** Its process has ended (known only where Claude Code keeps `~/.claude/sessions`). */
+  ended: boolean
   updatedAt: number
 }
 

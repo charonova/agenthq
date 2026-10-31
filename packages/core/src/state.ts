@@ -50,3 +50,33 @@ export function stateOf({ tail, modified, now, permissionMode, finished }: State
   const rest: Rest = state !== 'idle' ? null : quiet >= timing.couch ? 'couch' : quiet >= timing.coffee ? 'coffee' : null
   return { state, rest }
 }
+
+/**
+ * What Claude Code itself says about a running session (`~/.claude/sessions/<pid>.json`),
+ * applied to the lead's state, which is otherwise guessed from how long its transcript has been
+ * quiet. Only the values seen so far count; any other leaves the guess as it is.
+ *
+ * - "busy": working. A tool call still unanswered is running (a slow build), not waiting for you.
+ * - "idle" with a tool call unanswered: waiting for you (a permission prompt).
+ * - "idle" otherwise: its turn is over.
+ * - No process at all (when Claude Code keeps these files): the session ended; nobody waits.
+ */
+export function applyStatus(
+  guess: { state: State; rest: Rest },
+  tail: Tail,
+  status: string | null | undefined,
+  input: { modified: number; now: number; ended: boolean },
+): { state: State; rest: Rest } {
+  const quiet = input.now - input.modified
+  const resting = (): { state: State; rest: Rest } => ({
+    state: 'idle',
+    rest: quiet >= timing.couch ? 'couch' : quiet >= timing.coffee ? 'coffee' : null,
+  })
+  if (input.ended) return guess.state === 'working' || guess.state === 'waiting' ? resting() : guess
+  if (status === 'busy') return { state: 'working', rest: null }
+  if (status === 'idle') {
+    if (tail.step === 'calledTool') return { state: 'waiting', rest: null }
+    if (guess.state === 'working' || guess.state === 'waiting') return resting()
+  }
+  return guess
+}

@@ -30,6 +30,8 @@ const office = (staff: Agent[], manager: Partial<Agent> = {}): Office => ({
   staff,
   interns: [],
   wentHome: 0,
+  process: null,
+  ended: false,
   updatedAt: 0,
 })
 

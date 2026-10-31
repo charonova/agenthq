@@ -197,6 +197,10 @@ async function perform(action: JumpAction, host: Host | null): Promise<JumpResul
  * command that resumes it instead.
  */
 export async function jumpTo(home: string, session: { sessionId: string; cwd: string | null }): Promise<JumpResult> {
+  // AGENTHQ_JUMP=copy: never open windows, only copy the command (tests, or a preference).
+  if (process.env.AGENTHQ_JUMP === 'copy') {
+    return { done: 'copy', message: 'Copied the command that resumes it', command: resumeCommand(session) }
+  }
   const running: RunningSession | undefined = runningSessions(home).get(session.sessionId)
   let host: Host | null = null
   if (running && process.platform !== 'win32') {

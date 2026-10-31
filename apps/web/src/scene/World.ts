@@ -48,7 +48,10 @@ class Floor extends Container {
     const everyone = [office.manager, ...office.staff, ...office.interns]
     const waiting = everyone.some((agent) => agent.state === 'waiting')
     const working = everyone.some((agent) => agent.state === 'working')
-    this.title.text = office.title ? `${office.project} · ${office.title}` : office.project
+    const name = office.title ? `${office.project} · ${office.title}` : office.project
+    this.title.text = office.ended ? `${name} · ended` : name
+    // An ended session's office stays a while, dimmed, then closes.
+    this.scene.alpha = office.ended ? 0.55 : 1
     const { width } = this.scene.size
     this.sign
       .clear()
@@ -57,7 +60,7 @@ class Floor extends Container {
     this.light
       .clear()
       .circle(8, 8, 3)
-      .fill({ color: waiting ? 0xffd479 : working ? 0x4cd97b : 0x666c80 })
+      .fill({ color: office.ended ? 0x3a3d4a : waiting ? 0xffd479 : working ? 0x4cd97b : 0x666c80 })
   }
 
   get size() {

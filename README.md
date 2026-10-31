@@ -63,7 +63,7 @@ AgentHQ only **reads** what Claude Code writes in `~/.claude`; it never runs or 
 | What each one does   | The last lines of its transcript: the tool it called, and how long ago                                       |
 | Where a session runs | `~/.claude/sessions/<pid>.json` (which process runs which session), then the app above that process          |
 
-Only the end of each transcript is read, so multi-gigabyte sessions stay fast. Settings: `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag2` leaves out sessions whose folder contains those (claude-mem's background sessions are left out by default).
+Only the end of each transcript is read, so multi-gigabyte sessions stay fast. Settings: `AGENTHQ_JUMP=copy` makes "go to session" only copy the resume command; `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag2` leaves out sessions whose folder contains those (claude-mem's background sessions are left out by default).
 
 ## Develop
 

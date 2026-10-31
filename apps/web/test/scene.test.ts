@@ -34,6 +34,8 @@ function office(staff: Agent[], interns: Agent[] = [], manager: Partial<Agent> =
     staff,
     interns,
     wentHome: 0,
+    process: null,
+    ended: false,
     updatedAt: 0,
   }
 }

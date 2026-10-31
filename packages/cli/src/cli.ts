@@ -18,7 +18,8 @@ Options:
   --no-open         don't open the browser
 
 Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Never writes to it.
-Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.`)
+Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.
+AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it.`)
   process.exit(0)
 }
 

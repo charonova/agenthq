@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { discoverOffices } from '../src/office.js'
-import { stateOf, timing } from '../src/state.js'
+import { applyStatus, stateOf, timing } from '../src/state.js'
 import { describeTool, readTail, readTailLines } from '../src/tail.js'
 
 // Lines shaped like Claude Code's own transcripts (compact JSON, one per line), with made-up content.
@@ -170,6 +170,57 @@ describe('offices', () => {
     const [office] = discoverOffices({ home, now: NOW })
     expect(office!.staff.map((a) => [a.name, a.rest])).toEqual([['wallet', 'couch']])
     expect(office!.interns).toHaveLength(0)
+  })
+})
+
+describe('running sessions', () => {
+  const running = (pid: number, sessionId: string, status: string) =>
+    writeFileSync(join(home, 'sessions', `${pid}.json`), JSON.stringify({ pid, sessionId, cwd: '/Users/me/Code/x', status }))
+
+  it('keeps a running session open however long it waits, and marks ended ones', () => {
+    mkdirSync(join(home, 'sessions'))
+    const cwd = '/Users/me/Code/app'
+    session('-Users-me-Code-app', 'waits', cwd, [title('Waiting a long time'), endTurn(cwd, 7200)], 7200)
+    session('-Users-me-Code-app', 'gone', cwd, [title('Closed'), toolUse(cwd, 60, 'Bash', { command: 'rm -rf build' })], 60)
+    running(111, 'waits', 'idle')
+    const offices = discoverOffices({ home, now: NOW, alive: (pid) => pid === 111 })
+    const waits = offices.find((office) => office.sessionId === 'waits')!
+    expect(waits).toMatchObject({ ended: false, process: { pid: 111, status: 'idle' } })
+    const gone = offices.find((office) => office.sessionId === 'gone')!
+    // Its last tool call never got an answer, but the session ended: nobody's waiting.
+    expect(gone).toMatchObject({ ended: true, process: null, manager: { state: 'idle' } })
+  })
+
+  it('trusts "busy": a slow command is running, not waiting for you', () => {
+    mkdirSync(join(home, 'sessions'))
+    const cwd = '/Users/me/Code/app'
+    session('-Users-me-Code-app', 'build', cwd, [toolUse(cwd, 90, 'Bash', { command: 'pnpm build', description: 'Build' })], 90)
+    running(222, 'build', 'busy')
+    const [office] = discoverOffices({ home, now: NOW, alive: () => true })
+    expect(office!.manager).toMatchObject({ state: 'working', activity: 'run' })
+  })
+})
+
+describe('Claude Code’s own status', () => {
+  const guess = (state: 'working' | 'waiting' | 'idle' | 'done') => ({ state, rest: null })
+  const at = { modified: NOW - 60_000, now: NOW, ended: false }
+  const tail = (step: 'finished' | 'calledTool' | 'awaitingModel') => ({ ...readTail([]), step })
+
+  it('reads busy, idle and a pending tool', () => {
+    expect(applyStatus(guess('waiting'), tail('calledTool'), 'busy', at)).toEqual({ state: 'working', rest: null })
+    expect(applyStatus(guess('working'), tail('calledTool'), 'idle', at)).toEqual({ state: 'waiting', rest: null })
+    expect(applyStatus(guess('working'), tail('awaitingModel'), 'idle', at)).toEqual({ state: 'idle', rest: null })
+    expect(applyStatus(guess('done'), tail('finished'), 'idle', at)).toEqual(guess('done'))
+  })
+
+  it('leaves the guess alone for words it doesn’t know', () => {
+    expect(applyStatus(guess('waiting'), tail('calledTool'), 'shell', at)).toEqual(guess('waiting'))
+    expect(applyStatus(guess('working'), tail('awaitingModel'), null, at)).toEqual(guess('working'))
+  })
+
+  it('stops everyone in a session that ended', () => {
+    const ended = { modified: NOW - 20 * 60_000, now: NOW, ended: true }
+    expect(applyStatus(guess('waiting'), tail('calledTool'), null, ended)).toEqual({ state: 'idle', rest: 'couch' })
   })
 })
 

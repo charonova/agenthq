@@ -37,6 +37,8 @@ test('the "need you" counter goes to whoever is waiting', async ({ page }) => {
   await page.locator('.chip-button').click()
   await expect(page).toHaveURL(/#\/office\/session-blog$/)
   await expect(page.locator('.details')).toContainText('Waiting for you')
+  // Claude Code says it's idle with a tool call unanswered: a permission prompt.
+  await expect(page.locator('.details')).toContainText('Claude Codeidle')
   await expect(page).toHaveTitle(/^\(\d+\) AgentHQ$/)
 })
 

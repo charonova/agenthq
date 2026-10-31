@@ -50,7 +50,21 @@ const result = (cwd, now, ago) =>
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'ok' }] },
   })
 
-export function makeClaudeHome(root, now = Date.now()) {
+/**
+ * `pid`: a live process to stand for Claude Code's (the caller's own), so the sessions count as
+ * running, each with the status Claude Code would report.
+ */
+export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
+  mkdirSync(join(root, 'sessions'), { recursive: true })
+  const running = (n, sessionId, project, status) =>
+    writeFileSync(
+      join(root, 'sessions', `${pid}${n}.json`),
+      JSON.stringify({ pid, sessionId, cwd: `/Users/alex/Code/${project}`, status, kind: 'interactive', entrypoint: 'cli' }),
+    )
+  running(1, 'session-shop', 'shop', 'idle')
+  running(2, 'session-blog', 'blog', 'idle')
+  running(3, 'session-api', 'api', 'busy')
+
   const session = (project, id, title, lines, ago) => {
     const cwd = `/Users/alex/Code/${project}`
     const dir = join(root, 'projects', `-Users-alex-Code-${project}`)

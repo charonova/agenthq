@@ -13,7 +13,7 @@ const out = 'docs/media'
 const home = makeClaudeHome(mkdtempSync(join(tmpdir(), 'agenthq-media-')))
 const server = spawn(process.execPath, ['packages/cli/dist/cli.js', '--no-open', '--port', String(port)], {
   stdio: 'ignore',
-  env: { ...process.env, AGENTHQ_CLAUDE_HOME: home },
+  env: { ...process.env, AGENTHQ_CLAUDE_HOME: home, AGENTHQ_JUMP: 'copy' },
 })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
