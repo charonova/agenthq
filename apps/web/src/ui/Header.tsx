@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { goToAgent } from '../state/asks'
 import { useSessions } from '../state/sessions'
 import { everyone, totals, useOffices } from '../state/store'
+import { Find } from './Find'
 import { Bell, Gear } from './HeaderButtons'
 
 const connectionText = { connecting: 'Connecting…', live: 'Live', offline: 'Reconnecting…' } as const
@@ -36,6 +37,7 @@ export function Header() {
         </button>
         <Chip icon="☕" value={t.resting} label="on a break" />
       </div>
+      <Find />
       <button className="btn new-session" onClick={() => useSessions.getState().compose(true)}>
         ＋ New session
       </button>
