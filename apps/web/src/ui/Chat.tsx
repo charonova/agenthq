@@ -6,6 +6,7 @@ import { addPage, emptyLoaded, fetchPage, matches, useChat, type Loaded } from '
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
 import { AskCard } from './AskCard'
+import { Composer } from './Composer'
 import { Markdown } from './Markdown'
 
 /** The open conversation, over the office. It closes when its agent leaves. */
@@ -109,6 +110,14 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
     }
   }, [office.sessionId, agent.id])
 
+  // A page of mostly tool output or attachments shows little: fill the view from earlier pages.
+  const shownCount = loaded.messages.filter((message) => message.kind !== 'result').length
+  useEffect(() => {
+    if (status !== 'ready' || query || loaded.start === 0 || shownCount >= 20) return
+    const timer = setTimeout(() => void loadOlder(), 0)
+    return () => clearTimeout(timer)
+  }, [status, query, loaded.start, shownCount, loadOlder])
+
   useLayoutEffect(() => {
     const element = list.current
     if (!element) return
@@ -134,7 +143,6 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
     if (element.scrollTop < 80 && status === 'ready' && !query) void loadOlder()
   }
 
-  const enabled = useAsks((state) => state.enabled)
   const allAsks = useAsks((state) => state.asks)
   const asks = allAsks.filter((ask) => ask.sessionId === office.sessionId && ask.agentId === agent.id)
   const shown = query ? loaded.messages.filter((message) => matches(message, query)) : loaded.messages
@@ -195,13 +203,7 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
           ))}
         </div>
       )}
-      <footer className="chat-foot">
-        {office.kind === 'codex'
-          ? 'Answer Codex in its session (“Go to session”).'
-          : enabled
-            ? 'Its permission prompts and questions show up here; the terminal can still answer them.'
-            : 'To answer its prompts here, turn on “Answer from AgentHQ” under 🔔. Or answer in its session.'}
-      </footer>
+      <Composer office={office} isManager={agent.role === 'manager'} />
     </section>
   )
 }

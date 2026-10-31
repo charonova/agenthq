@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { spawn } from 'node:child_process'
 import { claudeHome, codexHome, discoverCodexOffices, discoverOffices, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
 import type { Agent, Office } from '@agenthq/core'
@@ -20,7 +21,8 @@ Options:
 Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Only reads it, unless you turn on
 answering from AgentHQ (🔔 in the page): that adds one hook to its settings.json, after saving a copy.
 Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.
-AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it.`)
+AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it.
+Sessions you start from the page run your own Claude Code (\`claude\` on your PATH, or AGENTHQ_CLAUDE_PATH).`)
   process.exit(0)
 }
 

@@ -30,6 +30,7 @@ function BuildingPanel({ offices }: { offices: Office[] }) {
                 <span className="who">
                   {office.project}
                   {office.kind === 'codex' && <small>codex</small>}
+                  {office.managed && <small className="here">runs here</small>}
                   {office.ended && <small>ended</small>}
                 </span>
                 <span className="what">{office.title ?? 'Untitled session'}</span>

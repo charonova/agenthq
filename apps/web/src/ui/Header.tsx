@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { goToAgent } from '../state/asks'
+import { useSessions } from '../state/sessions'
 import { everyone, totals, useOffices } from '../state/store'
 import { AlertsMenu } from './AlertsMenu'
 
@@ -35,6 +36,9 @@ export function Header() {
         </button>
         <Chip icon="☕" value={t.resting} label="on a break" />
       </div>
+      <button className="btn new-session" onClick={() => useSessions.getState().compose(true)}>
+        ＋ New session
+      </button>
       <AlertsMenu />
       <div className={`live ${connection}`}>
         <span className="dot" />

@@ -9,6 +9,6 @@ export default defineConfig({
   outDir: 'dist',
   clean: true,
   sourcemap: true,
-  noExternal: ['@agenthq/core'],
-  banner: { js: '#!/usr/bin/env node' },
+  // The Agent SDK's JavaScript is bundled (loaded when a session starts); it runs the user's own `claude`.
+  noExternal: ['@agenthq/core', '@anthropic-ai/claude-agent-sdk'],
 })

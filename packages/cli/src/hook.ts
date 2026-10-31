@@ -29,6 +29,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const quit = () => process.exit(0)
+// Sessions AgentHQ runs itself get their prompts straight from it.
+if (process.env.AGENTHQ_MANAGED) quit()
 let raw = ''
 process.stdin.setEncoding('utf8')
 process.stdin.on('data', (chunk) => (raw += chunk))

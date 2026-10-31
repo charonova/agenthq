@@ -16,6 +16,7 @@ import {
 import { Asks, type HookInput } from './asks.js'
 import { answeringEnabled, setAnswering, stateDir, writeHookScript } from './hook.js'
 import { jumpTo } from './jump.js'
+import { Sessions, type Mode, type Model } from './sessions.js'
 
 export interface ServerOptions {
   home: string
@@ -52,6 +53,8 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   if (enabled) writeHookScript()
   let latestAsks = ''
   const asks = new Asks(() => sendAsks())
+  // Sessions run from the page: a change (a turn starts or ends) shows at the next scan.
+  const sessions = new Sessions(asks, () => soon())
   const sendAsks = (force = false) => {
     const payload = JSON.stringify({ enabled, asks: asks.list() })
     if (payload === latestAsks && !force) return
@@ -60,11 +63,18 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   }
 
   const scan = () => {
+    // A session that just started, or asks something, but isn't in the building yet: look for it now.
+    const expected = [...sessions.ids(), ...asks.waitingSessions()]
+    if (expected.some((id) => !offices.some((office) => office.sessionId === id))) forgetSessions(home)
     try {
       // Claude Code's offices and Codex's, most recently busy first.
-      offices = [...discoverOffices({ home, ignore }), ...discoverCodexOffices({ home: codex, ignore })].sort(
-        (a, b) => b.updatedAt - a.updatedAt,
-      )
+      offices = [...discoverOffices({ home, ignore }), ...discoverCodexOffices({ home: codex, ignore })]
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((office) => {
+          const managed = office.kind === 'claude' ? sessions.info(office.sessionId) : null
+          // A session AgentHQ runs is running, whatever its process file says yet.
+          return { ...office, managed, ended: managed ? false : office.ended }
+        })
     } catch (error) {
       console.error('Couldn’t read the sessions:', error)
       return
@@ -132,6 +142,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       await handleAnswer(request, response, asks)
       return
     }
+    if (url.pathname.startsWith('/api/sessions/')) {
+      await handleSessions(request, response, url.pathname.slice('/api/sessions/'.length), offices, sessions)
+      return
+    }
     if (url.pathname === '/api/answering') {
       if (request.method !== 'POST' || !fromOwnPage(request)) return void json(response, 403, { error: 'Not allowed' })
       try {
@@ -194,6 +208,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     close: () => {
       clearInterval(ticker)
       clearInterval(heartbeat)
+      sessions.closeAll()
       asks.clear()
       try {
         // Only this run's file: another AgentHQ may have started since.
@@ -305,6 +320,64 @@ async function handleHook(
   if (response.destroyed) return
   if (decision) json(response, 200, { decision })
   else response.writeHead(204).end()
+}
+
+/**
+ * `POST /api/sessions/<action>`: start a session, resume one here, send it a message, interrupt
+ * its turn, or end it. From the office's own page only; a session running in a terminal can't
+ * be resumed here (two processes would write one transcript).
+ */
+async function handleSessions(
+  request: IncomingMessage,
+  response: ServerResponse,
+  action: string,
+  offices: Office[],
+  sessions: Sessions,
+) {
+  if (request.method !== 'POST' || !fromOwnPage(request)) return json(response, 403, { error: 'Not allowed' })
+  let body: { sessionId?: unknown; cwd?: unknown; text?: unknown; model?: unknown; mode?: unknown }
+  try {
+    body = JSON.parse(await readBody(request, 256 * 1024)) as typeof body
+  } catch {
+    return json(response, 400, { error: 'Expected JSON' })
+  }
+  const text = typeof body.text === 'string' ? body.text : ''
+  const sessionId = typeof body.sessionId === 'string' ? body.sessionId : ''
+  try {
+    switch (action) {
+      case 'start': {
+        const id = await sessions.start({
+          cwd: typeof body.cwd === 'string' ? body.cwd : '',
+          prompt: text,
+          model: typeof body.model === 'string' && body.model ? (body.model as Model) : null,
+          mode: typeof body.mode === 'string' && body.mode ? (body.mode as Mode) : null,
+        })
+        log({ started: id })
+        return json(response, 200, { sessionId: id })
+      }
+      case 'send': {
+        const office = offices.find((candidate) => candidate.sessionId === sessionId)
+        if (sessions.info(sessionId)) sessions.send(sessionId, text)
+        // Only a session known to have ended: one still open in a terminal stays there.
+        else if (office && office.kind === 'claude' && office.ended && office.cwd) {
+          await sessions.resume(sessionId, office.cwd, text)
+          log({ resumed: sessionId })
+        } else return json(response, 409, { error: 'It runs in a terminal: message it there' })
+        return json(response, 200, { ok: true })
+      }
+      case 'interrupt':
+        await sessions.interrupt(sessionId)
+        return json(response, 200, { ok: true })
+      case 'stop':
+        sessions.stop(sessionId)
+        log({ stopped: sessionId })
+        return json(response, 200, { ok: true })
+      default:
+        return json(response, 404, { error: 'No such action' })
+    }
+  } catch (error) {
+    return json(response, 400, { error: (error as Error).message })
+  }
 }
 
 /** `POST /api/answer`: your answer to a prompt, from the office's own page. */

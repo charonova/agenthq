@@ -98,6 +98,14 @@ export interface Office {
   /** Its process has ended (known only where Claude Code keeps `~/.claude/sessions`). */
   ended: boolean
   updatedAt: number
+  /** Run by AgentHQ itself (started or resumed from the page), so the page can message it. */
+  managed?: Managed | null
+}
+
+/** A session AgentHQ runs: whether its turn is going on, and what went wrong if it stopped. */
+export interface Managed {
+  busy: boolean
+  error: string | null
 }
 
 /** What happened when the page asked to go to a session (`POST /api/jump`). */

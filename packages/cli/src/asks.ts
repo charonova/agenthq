@@ -22,6 +22,8 @@ export type Decision =
 interface Pending {
   ask: Omit<Ask, 'agentId'>
   input: HookInput
+  /** From a session AgentHQ runs: nothing else can answer it, so it waits for you. */
+  managed: boolean
   /** The "always" choices offered, in the order shown. */
   suggestions: Suggestion[]
   resolve: (decision: Decision | null) => void
@@ -98,7 +100,7 @@ export class Asks {
   constructor(private readonly changed: () => void) {}
 
   /** A prompt from the hook; resolves with your answer, or null for "let the terminal decide". */
-  add(input: HookInput, onGone: (drop: () => void) => void): Promise<Decision | null> {
+  add(input: HookInput, onGone: (drop: () => void) => void, managed = false): Promise<Decision | null> {
     const toolInput = input.tool_input && typeof input.tool_input === 'object' ? input.tool_input : {}
     const name = typeof input.tool_name === 'string' ? input.tool_name : 'tool'
     const kind = name === 'AskUserQuestion' ? 'question' : 'permission'
@@ -120,6 +122,7 @@ export class Asks {
           at: Date.now(),
         },
         input: { ...input, tool_input: toolInput },
+        managed,
         suggestions: offered.map((entry) => entry.suggestion),
         resolve,
       })
@@ -165,8 +168,9 @@ export class Asks {
     let dropped = false
     for (const [id, pending] of this.pending) {
       const found = agentFor(pending.input, offices)
-      const moved = found && found.agent.updatedAt > pending.ask.at + STALE_AFTER_WRITE
-      if (moved || found?.office.ended || now - pending.ask.at > EXPIRE) {
+      // A terminal answers on its own (the transcript moves on); a session AgentHQ runs can't.
+      const moved = !pending.managed && found && found.agent.updatedAt > pending.ask.at + STALE_AFTER_WRITE
+      if (moved || (!pending.managed && found?.office.ended) || now - pending.ask.at > EXPIRE) {
         this.settle(id, null, false)
         dropped = true
       }
@@ -180,6 +184,11 @@ export class Asks {
       const found = agentFor(input, this.offices)
       return found ? [{ ...ask, agentId: found.agent.id }] : []
     })
+  }
+
+  /** Session ids with a prompt waiting whose office isn't in the building yet. */
+  waitingSessions(): string[] {
+    return [...this.pending.values()].filter(({ input }) => !agentFor(input, this.offices)).map(({ ask }) => ask.sessionId)
   }
 
   /** Lets every hook go (AgentHQ is closing): the terminal decides. */
