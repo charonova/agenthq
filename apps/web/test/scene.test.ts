@@ -19,6 +19,7 @@ const agent = (overrides: Partial<Agent>): Agent => ({
   tool: null,
   lastText: null,
   contextTokens: null,
+  history: [],
   updatedAt: 0,
   ...overrides,
 })

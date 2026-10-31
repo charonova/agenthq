@@ -28,6 +28,13 @@ export interface Tool {
   activity: Activity
 }
 
+/** One tool call, for an agent's timeline. */
+export interface Step {
+  /** When it was called (milliseconds). */
+  at: number
+  tool: Tool
+}
+
 /** What the end of a transcript says. */
 export interface Tail {
   step: 'finished' | 'calledTool' | 'awaitingModel' | null
@@ -40,6 +47,8 @@ export interface Tail {
   /** The context window in use at the last reply. */
   contextTokens: number | null
   lastEventAt: number | null
+  /** Its latest tool calls, oldest first (at most `HISTORY` of them). */
+  history: Step[]
 }
 
 export type Role = 'manager' | 'staff' | 'intern'
@@ -63,6 +72,8 @@ export interface Agent {
   tool: Tool | null
   lastText: string | null
   contextTokens: number | null
+  /** Its latest tool calls, oldest first: the timeline. */
+  history: Step[]
   /** When its transcript last changed. */
   updatedAt: number
 }

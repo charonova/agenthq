@@ -1,5 +1,5 @@
 import type { Agent, Office } from '@agenthq/core'
-import { agoText, describe, stateEmoji } from '../scene/plan'
+import { activityIcon, agoText, describe, stateEmoji } from '../scene/plan'
 import { everyone, useOffices } from '../state/store'
 import { useNow } from './useNow'
 
@@ -111,6 +111,20 @@ function Details({ agent, now }: { agent: Agent; now: number }) {
           ))}
       </dl>
       {agent.lastText && <p className="said">“{agent.lastText}”</p>}
+      {agent.history.length > 0 && (
+        <ol className="timeline">
+          {[...agent.history].reverse().map((step) => (
+            <li key={`${step.at}-${step.tool.name}`}>
+              <time>{clock(step.at)}</time>
+              <span>
+                {activityIcon[step.tool.activity]} {step.tool.target ?? step.tool.name}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   )
 }
+
+const clock = (time: number) => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })

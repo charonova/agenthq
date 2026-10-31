@@ -45,6 +45,8 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 - **The building**: every live session as an office on one map. Drag to move around, scroll to zoom, click an office to go inside.
 - **In an office**: the manager in a glass office, staff at desks in their team colour, interns beside whoever started them. Bubbles say what each one is doing; click anyone for their task, tool, model, context and last words.
 - **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture.
+- **It tells you when someone needs you**: a desktop notification and a chime when an agent starts waiting for you (🔔 in the header); click it to jump there. The tab title shows how many are waiting, and the **✋ need you** counter goes to each in turn. Optionally, also when a session finishes.
+- **A timeline per agent**: its latest tool calls, with times, under its details.
 - **Day and night** follow your clock.
 
 ## How it works

@@ -207,6 +207,7 @@ function buildOffice(input: BuildInput): Office {
     tool: leadTail.tool,
     lastText: leadTail.lastText,
     contextTokens: leadTail.contextTokens,
+    history: leadTail.history,
     updatedAt: modified,
   }
 
@@ -253,6 +254,7 @@ function buildOffice(input: BuildInput): Office {
       tool: tail.tool,
       lastText: tail.lastText,
       contextTokens: tail.contextTokens,
+      history: tail.history,
       updatedAt: updated,
     }
     agent.activity = activityOf(agent.state, tail)

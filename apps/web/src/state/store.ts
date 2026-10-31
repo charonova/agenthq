@@ -1,5 +1,6 @@
 import type { Agent, Office } from '@agenthq/core'
 import { create } from 'zustand'
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware'
 
 export type Connection = 'connecting' | 'live' | 'offline'
 
@@ -13,6 +14,8 @@ interface OfficeState {
   setConnection: (connection: Connection) => void
   focus: (sessionId: string | null) => void
   select: (agentId: string | null) => void
+  /** Goes to an agent: its office, with it selected. */
+  jump: (sessionId: string, agentId: string) => void
 }
 
 export const useOffices = create<OfficeState>()((set) => ({
@@ -30,7 +33,56 @@ export const useOffices = create<OfficeState>()((set) => ({
   setConnection: (connection) => set({ connection }),
   focus: (focusedId) => set({ focusedId, selectedAgentId: null }),
   select: (selectedAgentId) => set({ selectedAgentId }),
+  jump: (focusedId, selectedAgentId) => set({ focusedId, selectedAgentId }),
 }))
+
+interface Settings {
+  /** Desktop notifications when an agent needs you. */
+  notify: boolean
+  /** A chime with each alert. */
+  sound: boolean
+  /** Also tell when a session's manager finishes its turn. */
+  finished: boolean
+  set: (change: Partial<Omit<Settings, 'set'>>) => void
+}
+
+/** Browser storage can be missing or refuse (private windows): settings then last for the visit. */
+const safeStorage: StateStorage = {
+  getItem: (name) => {
+    try {
+      return localStorage.getItem(name)
+    } catch {
+      return null
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      localStorage.setItem(name, value)
+    } catch {
+      // Not saved: fine for a preference.
+    }
+  },
+  removeItem: (name) => {
+    try {
+      localStorage.removeItem(name)
+    } catch {
+      // Nothing to remove.
+    }
+  },
+}
+
+/** This viewer's preferences, kept in this browser. */
+export const useSettings = create<Settings>()(
+  persist(
+    (set) => ({
+      notify: false,
+      sound: true,
+      finished: false,
+      set: (change) => set(change),
+    }),
+    { name: 'agenthq-settings', storage: createJSONStorage(() => safeStorage), partialize: ({ set: _set, ...rest }) => rest },
+  ),
+)
 
 export const everyone = (office: Office): Agent[] => [office.manager, ...office.staff, ...office.interns]
 

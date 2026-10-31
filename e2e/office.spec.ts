@@ -29,3 +29,24 @@ test('an office shows its manager, staff and interns, with details on click', as
   await page.locator('.back').click()
   await expect(page).toHaveURL(/#\/$/)
 })
+
+test('the "need you" counter goes to whoever is waiting', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('.office-row')).toHaveCount(3)
+  // The made-up blog session's manager waits on a command it ran.
+  await page.locator('.chip-button').click()
+  await expect(page).toHaveURL(/#\/office\/session-blog$/)
+  await expect(page.locator('.details')).toContainText('Waiting for you')
+  await expect(page).toHaveTitle(/^\(\d+\) AgentHQ$/)
+})
+
+test('a timeline of what an agent did, and the alerts menu', async ({ page }) => {
+  await page.goto('/#/office/session-shop')
+  await page.locator('.person', { hasText: 'qa' }).click()
+  await expect(page.locator('.timeline li')).toContainText(['Run the export tests'])
+  await page.locator('.bell').click()
+  await expect(page.locator('.alerts .menu')).toContainText('Notify me when an agent needs me')
+  await page.locator('.alerts label', { hasText: 'Also when a session finishes' }).click()
+  await expect(page.locator('.alerts label', { hasText: 'Also when a session finishes' }).locator('input')).toBeChecked()
+  await page.screenshot({ path: 'test-results/alerts.png' })
+})

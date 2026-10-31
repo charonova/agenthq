@@ -215,6 +215,16 @@ describe('transcripts', () => {
     expect(readTail([toolUse(cwd, 30, 'Read', {}), endTurn(cwd, 10)])).toMatchObject({ step: 'finished', tool: null })
   })
 
+  it('keeps the latest tool calls as a timeline, oldest first', () => {
+    const cwd = '/Users/me/Code/app'
+    const lines = Array.from({ length: 20 }, (_, i) => toolUse(cwd, 200 - i * 10, 'Read', { file_path: `/f${i}.ts` }))
+    const { history } = readTail([...lines, endTurn(cwd, 5)])
+    expect(history).toHaveLength(12)
+    expect(history[0]!.tool.target).toBe('f8.ts')
+    expect(history.at(-1)!.tool.target).toBe('f19.ts')
+    expect(history[1]!.at - history[0]!.at).toBe(10_000)
+  })
+
   it('names each tool by where the agent goes', () => {
     expect(describeTool('Grep', { pattern: 'TODO' })).toEqual({ name: 'Grep', target: 'TODO', activity: 'read' })
     expect(describeTool('Bash', { command: 'npm run build' })).toMatchObject({ activity: 'run', target: 'npm run build' })

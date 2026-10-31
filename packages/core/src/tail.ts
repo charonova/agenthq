@@ -131,6 +131,7 @@ export function readTail(lines: string[]): Tail {
     permissionMode: null,
     contextTokens: null,
     lastEventAt: null,
+    history: [],
   }
   for (const line of lines) {
     const entry = parse(line)
@@ -157,6 +158,7 @@ export function readTail(lines: string[]): Tail {
         if (part.type === 'text' && str(part.text)) tail.lastText = short(String(part.text), 140)
         if (part.type === 'tool_use') {
           tail.tool = describeTool(String(part.name ?? 'tool'), (part.input ?? {}) as Json)
+          if (at) tail.history.push({ at: Date.parse(at), tool: tail.tool })
           tail.step = 'calledTool'
         }
       }
@@ -173,5 +175,10 @@ export function readTail(lines: string[]): Tail {
       tail.step = 'awaitingModel'
     }
   }
+  // Only the latest few: the office streams every agent's timeline on each change.
+  tail.history = tail.history.filter((step) => !Number.isNaN(step.at)).slice(-HISTORY)
   return tail
 }
+
+/** How many tool calls an agent's timeline keeps. */
+export const HISTORY = 12
