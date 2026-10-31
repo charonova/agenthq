@@ -68,6 +68,11 @@ test('going to a session that can’t be opened copies the command that resumes 
   )
 })
 
+test('going to a Codex session copies `codex resume` when it can’t be opened', async ({ request }) => {
+  const asked = await request.post('/api/jump', { data: { sessionId: 'codex-mobile' }, headers: { 'X-AgentHQ': '1' } })
+  expect(await asked.json()).toMatchObject({ done: 'copy', command: "cd '/Users/alex/Code/mobile' && codex resume codex-mobile" })
+})
+
 test('only the office page can ask to open a window', async ({ request }) => {
   const asked = await request.post('/api/jump', { data: { sessionId: 'session-shop' } })
   expect(asked.status()).toBe(403)

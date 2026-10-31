@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { hostOf, parseProcessTable, planJump, resumeCommand, terminalScript, windowFor } from '../src/jump'
+import {
+  codexProcesses,
+  hostOf,
+  parseLsofCwd,
+  parseProcessTable,
+  pickCodex,
+  planJump,
+  resumeCommand,
+  terminalScript,
+  windowFor,
+} from '../src/jump'
 
 // Shaped like `ps -axo pid=,ppid=,tty=,comm=` on macOS, with made-up processes.
 const table = parseProcessTable(`
@@ -85,5 +95,53 @@ describe('planning the jump', () => {
     expect(windowFor('/Users/me/Code/shop/api', open)).toBe('/Users/me/Code/shop')
     expect(windowFor('/Users/me/Code/blog', open)).toBe('/Users/me/Code')
     expect(windowFor('/tmp/x', open)).toBeNull()
+  })
+})
+
+describe('going to a Codex session', () => {
+  // Made-up processes: Codex in a Terminal tab, inside the ChatGPT app, and its background server.
+  const codexTable = parseProcessTable(`
+    1     0 ??       /sbin/launchd
+  900     1 ??       /System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal
+  902   900 ttys005  -zsh
+  910   902 ttys005  /Users/alex/.codex/packages/standalone/releases/0.166.0/bin/codex
+  911   910 ttys005  /Users/alex/.codex/packages/standalone/releases/0.166.0/bin/codex-code-mode-host
+ 2000     1 ??       /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
+ 2001  2000 ??       /Applications/ChatGPT.app/Contents/Resources/codex
+ 3000     1 ??       /Users/alex/.codex/packages/app-server-daemon/releases/0.166.0/bin/codex
+`)
+
+  it('finds Codex itself, not its helpers', () => {
+    expect(codexProcesses(codexTable).map((row) => row.pid)).toEqual([910, 2001, 3000])
+  })
+
+  it('reads a process’s folder from lsof', () => {
+    expect(parseLsofCwd('p910\nfcwd\nn/Users/alex/Code/mobile\n')).toBe('/Users/alex/Code/mobile')
+    expect(parseLsofCwd('p910\n')).toBeNull()
+  })
+
+  it('picks the process in the thread’s folder: a terminal tab first, then an app', () => {
+    const found = [
+      { pid: 3000, cwd: '/Users/alex/Code/mobile', host: hostOf(3000, codexTable) },
+      { pid: 2001, cwd: '/Users/alex/Code/mobile', host: hostOf(2001, codexTable) },
+      { pid: 910, cwd: '/Users/alex/Code/mobile', host: hostOf(910, codexTable) },
+    ]
+    expect(pickCodex(found, '/Users/alex/Code/mobile')).toMatchObject({ pid: 910, host: { name: 'Terminal', tty: 'ttys005' } })
+    expect(pickCodex(found.slice(0, 2), '/Users/alex/Code/mobile')).toMatchObject({ pid: 2001, host: { name: 'ChatGPT' } })
+    expect(pickCodex(found, '/Users/alex/Code/web')).toBeNull()
+    expect(pickCodex(found, null)).toBeNull()
+  })
+
+  it('opens its Terminal tab, or copies `codex resume`', () => {
+    const session = { sessionId: 'codex-mobile', cwd: '/Users/alex/Code/mobile', kind: 'codex' as const }
+    expect(planJump('darwin', hostOf(910, codexTable), session)).toEqual({
+      kind: 'terminal-tab',
+      app: 'Terminal',
+      tty: 'ttys005',
+    })
+    expect(planJump('darwin', null, session)).toEqual({
+      kind: 'copy',
+      command: "cd '/Users/alex/Code/mobile' && codex resume codex-mobile",
+    })
   })
 })

@@ -96,7 +96,7 @@ export function resumeCommand(session: { sessionId: string; cwd: string | null; 
 export function planJump(
   platform: NodeJS.Platform,
   host: Host | null,
-  session: { sessionId: string; cwd: string | null },
+  session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' },
 ): JumpAction {
   const copy: JumpAction = { kind: 'copy', command: resumeCommand(session) }
   if (platform !== 'darwin' || !host?.appPath) return copy
@@ -168,6 +168,51 @@ export function windowFor(folder: string, open: string[]): string | null {
   return candidates.sort((a, b) => b.length - a.length)[0] ?? null
 }
 
+/** Codex's own processes: the `codex` program itself, not its helpers (`codex-code-mode-host`…). */
+export function codexProcesses(table: ProcessRow[]): ProcessRow[] {
+  return table.filter((row) => /(^|\/)codex$/.test(row.command))
+}
+
+/** `lsof -a -p <pid> -d cwd -Fn` prints `p<pid>`, `fcwd`, then `n<folder>`. */
+export function parseLsofCwd(text: string): string | null {
+  const line = text.split('\n').find((part) => part.startsWith('n/'))
+  return line ? line.slice(1) : null
+}
+
+/**
+ * The Codex process working on a thread, found by its folder (Codex keeps no pid ↔ thread file):
+ * one in a terminal tab first, then one inside an app (Codex's or ChatGPT's, an editor), then any.
+ */
+export function pickCodex(found: { pid: number; cwd: string | null; host: Host | null }[], folder: string | null) {
+  if (!folder) return null
+  const rank = (candidate: (typeof found)[number]) => (candidate.host?.tty ? 2 : candidate.host ? 1 : 0)
+  return found.filter((candidate) => candidate.cwd === folder).sort((a, b) => rank(b) - rank(a))[0] ?? null
+}
+
+/** The Codex process and app for a thread (macOS: `ps`, then each `codex`'s folder from `lsof`). */
+async function findCodexHost(folder: string | null): Promise<Host | null> {
+  if (!folder || process.platform !== 'darwin') return null
+  try {
+    const { stdout } = await run('ps', ['-axo', 'pid=,ppid=,tty=,comm='], { maxBuffer: 16 * 1024 * 1024 })
+    const table = parseProcessTable(stdout)
+    const found = await Promise.all(
+      codexProcesses(table)
+        .slice(0, 24)
+        .map(async (row) => {
+          try {
+            const { stdout: lsof } = await run('lsof', ['-a', '-p', String(row.pid), '-d', 'cwd', '-Fn'], { timeout: 3000 })
+            return { pid: row.pid, cwd: parseLsofCwd(lsof), host: hostOf(row.pid, table) }
+          } catch {
+            return { pid: row.pid, cwd: null, host: null }
+          }
+        }),
+    )
+    return pickCodex(found, folder)?.host ?? null
+  } catch {
+    return null
+  }
+}
+
 /** Carries out a plan. Only programs run directly (never a shell), with fixed arguments. */
 async function perform(action: JumpAction, host: Host | null): Promise<JumpResult> {
   switch (action.kind) {
@@ -217,9 +262,20 @@ export async function jumpTo(
   session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' },
 ): Promise<JumpResult> {
   // AGENTHQ_JUMP=copy: never open windows, only copy the command (tests, or a preference).
-  // Codex keeps no record of which process runs which thread: its command is copied.
-  if (process.env.AGENTHQ_JUMP === 'copy' || session.kind === 'codex') {
+  if (process.env.AGENTHQ_JUMP === 'copy') {
     return { done: 'copy', message: 'Copied the command that resumes it', command: resumeCommand(session) }
+  }
+  if (session.kind === 'codex') {
+    const host = await findCodexHost(session.cwd)
+    try {
+      return await perform(planJump(process.platform, host, session), host)
+    } catch {
+      return {
+        done: 'copy',
+        message: `Couldn’t open ${host?.name ?? 'it'}: copied the command that resumes it`,
+        command: resumeCommand(session),
+      }
+    }
   }
   const { running, host } = await findHost(home, session.sessionId)
   const action = planJump(process.platform, running ? host : null, {
