@@ -1,7 +1,12 @@
+import { execFileSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import {
   codexProcesses,
   hostOf,
+  hostOfLinux,
+  hostOfWindows,
+  parseWindowsTable,
+  windowsProcessQuery,
   parseLsofCwd,
   parseProcessTable,
   pickCodex,
@@ -143,5 +148,91 @@ describe('going to a Codex session', () => {
       kind: 'copy',
       command: "cd '/Users/alex/Code/mobile' && codex resume codex-mobile",
     })
+  })
+})
+
+describe('going to a session on Linux and Windows', () => {
+  const session = { sessionId: 'abc', cwd: '/home/alex/Code/shop' }
+
+  // Made-up `ps -axo pid=,ppid=,tty=,comm=` on Linux: names only, cut at 15 characters.
+  const linux = parseProcessTable(`
+    1     0 ?        systemd
+ 1200     1 ?        code
+ 1250  1200 ?        code
+ 1300  1250 pts/3    bash
+ 1301  1300 pts/3    claude
+ 2000     1 ?        gnome-terminal-
+ 2001  2000 pts/5    bash
+ 2002  2001 pts/5    claude
+`)
+
+  it('opens the folder’s window in VS Code with its own command', () => {
+    const host = hostOfLinux(1301, linux)
+    expect(host).toMatchObject({ name: 'Visual Studio Code', program: 'code', tty: 'pts/3' })
+    expect(planJump('linux', host, session)).toEqual({ kind: 'open-folder', program: 'code', folder: '/home/alex/Code/shop' })
+  })
+
+  it('copies the command for GNOME Terminal, which can’t be told to show one tab', () => {
+    const host = hostOfLinux(2002, linux)
+    expect(host).toMatchObject({ name: 'GNOME Terminal', terminal: true })
+    expect(planJump('linux', host, session)).toEqual({
+      kind: 'copy',
+      command: "cd '/home/alex/Code/shop' && claude --resume abc",
+      reason: 'GNOME Terminal can’t be told to show one tab',
+    })
+  })
+
+  // Made-up lines of the PowerShell query: pid,ppid,name,program.
+  const windows = parseWindowsTable(
+    [
+      '4,0,System,',
+      '5000,1,Code.exe,C:\\Users\\alex\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe',
+      '5100,5000,Code.exe,C:\\Users\\alex\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe',
+      '5200,5100,pwsh.exe,C:\\Program Files\\PowerShell\\7\\pwsh.exe',
+      '5300,5200,claude.exe,C:\\Users\\alex\\.local\\bin\\claude.exe',
+      '6000,1,WindowsTerminal.exe,C:\\Program Files\\WindowsApps\\WindowsTerminal.exe',
+      '6100,6000,pwsh.exe,',
+      '6200,6100,node.exe,C:\\nodejs\\node.exe',
+    ].join('\r\n'),
+  )
+
+  it('reads the process list, and opens the folder in the editor’s own program', () => {
+    expect(windows).toHaveLength(8)
+    expect(windows[0]).toEqual({ pid: 4, ppid: 0, name: 'System', path: null })
+    const host = hostOfWindows(5300, windows)
+    expect(host).toMatchObject({ name: 'Visual Studio Code', program: windows[1]!.path })
+    expect(planJump('win32', host, { sessionId: 'abc', cwd: 'C:\\Code\\shop' })).toEqual({
+      kind: 'open-folder',
+      program: windows[1]!.path,
+      folder: 'C:\\Code\\shop',
+    })
+  })
+
+  it('copies the command for Windows Terminal', () => {
+    const host = hostOfWindows(6200, windows)
+    expect(host).toMatchObject({ name: 'Windows Terminal', terminal: true })
+    expect(planJump('win32', host, session)).toMatchObject({
+      kind: 'copy',
+      reason: 'Windows Terminal can’t be told to show one tab',
+    })
+    expect(planJump('win32', null, session)).toMatchObject({ kind: 'copy' })
+  })
+})
+
+describe('the real process list (read only)', () => {
+  it.runIf(process.platform === 'win32')('Windows: the PowerShell query lists this test with its parent', () => {
+    const text = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', windowsProcessQuery], {
+      encoding: 'utf8',
+      maxBuffer: 16 * 1024 * 1024,
+      windowsHide: true,
+    })
+    const self = parseWindowsTable(text).find((row) => row.pid === process.pid)
+    expect(self).toMatchObject({ ppid: process.ppid })
+    expect(self?.name.toLowerCase()).toContain('node')
+  })
+
+  it.runIf(process.platform !== 'win32')('macOS and Linux: ps lists this test with its parent', () => {
+    const text = execFileSync('ps', ['-axo', 'pid=,ppid=,tty=,comm='], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
+    expect(parseProcessTable(text).find((row) => row.pid === process.pid)).toMatchObject({ ppid: process.ppid })
   })
 })
