@@ -47,19 +47,21 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 - **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture.
 - **It tells you when someone needs you**: a desktop notification and a chime when an agent starts waiting for you (🔔 in the header); click it to jump there. The tab title shows how many are waiting, and the **✋ need you** counter goes to each in turn. Optionally, also when a session finishes.
 - **A timeline per agent**: its latest tool calls, with times, under its details.
+- **Go straight to a session**: double-click anyone (or **Go to session ↗** in their details) and its window comes forward: the exact tab in Terminal or iTerm2, the project's window in VS Code, Cursor or Windsurf, or the app it runs in (macOS). Elsewhere, or when it can't, the command that resumes the session is copied for you.
 - **Day and night** follow your clock.
 
 ## How it works
 
 AgentHQ only **reads** what Claude Code writes in `~/.claude`; it never runs or changes Claude Code, and nothing leaves your computer (the page is served on 127.0.0.1 only).
 
-| Office             | From                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Offices            | Sessions in `~/.claude/projects/*/*.jsonl` active in the last 30 minutes                                     |
-| Manager            | The session's own transcript                                                                                 |
-| Staff              | Teammates: `<session>/subagents/agent-*.jsonl` whose `.meta.json` says `spawnDepth: 0` (name, colour, model) |
-| Interns            | Helpers they started: `spawnDepth` 1+, with `parentAgentId`                                                  |
-| What each one does | The last lines of its transcript: the tool it called, and how long ago                                       |
+| Office               | From                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Offices              | Sessions in `~/.claude/projects/*/*.jsonl` active in the last 30 minutes                                     |
+| Manager              | The session's own transcript                                                                                 |
+| Staff                | Teammates: `<session>/subagents/agent-*.jsonl` whose `.meta.json` says `spawnDepth: 0` (name, colour, model) |
+| Interns              | Helpers they started: `spawnDepth` 1+, with `parentAgentId`                                                  |
+| What each one does   | The last lines of its transcript: the tool it called, and how long ago                                       |
+| Where a session runs | `~/.claude/sessions/<pid>.json` (which process runs which session), then the app above that process          |
 
 Only the end of each transcript is read, so multi-gigabyte sessions stay fast. Settings: `AGENTHQ_CLAUDE_HOME` reads another folder; `AGENTHQ_IGNORE=frag1,frag2` leaves out sessions whose folder contains those (claude-mem's background sessions are left out by default).
 
