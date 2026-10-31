@@ -1,6 +1,7 @@
 import type { Ask, Office } from '@agenthq/core'
 import { useEffect } from 'react'
 import { useAsks } from './asks'
+import { receiveDraft } from './sessions'
 import { useOffices } from './store'
 
 /**
@@ -28,6 +29,7 @@ export function useOfficeStream() {
     const events = new EventSource('/events')
     events.addEventListener('offices', (event) => receive((event as MessageEvent<string>).data))
     events.addEventListener('asks', (event) => useAsks.getState().receive(JSON.parse((event as MessageEvent<string>).data)))
+    events.addEventListener('draft', (event) => receiveDraft(JSON.parse((event as MessageEvent<string>).data)))
     events.onerror = () => setConnection('offline')
     return () => events.close()
   }, [])

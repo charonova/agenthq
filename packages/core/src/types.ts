@@ -108,6 +108,19 @@ export interface Managed {
   error: string | null
 }
 
+/**
+ * The reply a session AgentHQ runs is writing right now, before its transcript has it: shown as
+ * it's written, then the transcript's own line takes over.
+ */
+export interface Draft {
+  /** One per block of text the model writes. */
+  id: string
+  text: string
+  startedAt: number
+  /** The block is written; its transcript line is on the way. */
+  final: boolean
+}
+
 /** What happened when the page asked to go to a session (`POST /api/jump`). */
 export interface JumpResult {
   done: 'opened' | 'copy'

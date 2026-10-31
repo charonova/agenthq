@@ -623,6 +623,25 @@ button {
 .msg.agent .bubble {
   border-left: 3px solid var(--who);
 }
+/* A reply still being written: the transcript's own line replaces it once it lands. */
+.msg.draft .bubble {
+  border: 1px dashed var(--line);
+}
+.msg.draft.writing .md > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--muted);
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
 .msg.agent .meta b {
   color: var(--who);
 }

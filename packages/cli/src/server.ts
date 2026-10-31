@@ -11,6 +11,7 @@ import {
   forgetSessions,
   readConversation,
   type AskAnswer,
+  type Draft,
   type Office,
 } from '@agenthq/core'
 import { Asks, type HookInput } from './asks.js'
@@ -53,8 +54,26 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   if (enabled) writeHookScript()
   let latestAsks = ''
   const asks = new Asks(() => sendAsks())
-  // Sessions run from the page: a change (a turn starts or ends) shows at the next scan.
-  const sessions = new Sessions(asks, () => soon())
+  // Sessions run from the page: a change (a turn starts or ends) shows at the next scan; the
+  // reply being written goes out as it grows, at most every 80 ms per session.
+  const drafting = new Map<string, Draft | null>()
+  let draftTimer: NodeJS.Timeout | null = null
+  const sendDrafts = () => {
+    draftTimer = null
+    for (const [sessionId, draft] of drafting) {
+      const payload = JSON.stringify({ sessionId, draft })
+      for (const client of clients) client.write(`event: draft\ndata: ${payload}\n\n`)
+    }
+    drafting.clear()
+  }
+  const sessions = new Sessions(
+    asks,
+    () => soon(),
+    (sessionId, draft) => {
+      drafting.set(sessionId, draft)
+      draftTimer ??= setTimeout(sendDrafts, 80)
+    },
+  )
   const sendAsks = (force = false) => {
     const payload = JSON.stringify({ enabled, asks: asks.list() })
     if (payload === latestAsks && !force) return
@@ -119,6 +138,8 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       clients.add(response)
       send(response, latest || '[]')
       response.write(`event: asks\ndata: ${latestAsks || JSON.stringify({ enabled, asks: [] })}\n\n`)
+      for (const [sessionId, draft] of Object.entries(sessions.drafts()))
+        response.write(`event: draft\ndata: ${JSON.stringify({ sessionId, draft })}\n\n`)
       request.on('close', () => clients.delete(response))
       return
     }
@@ -208,6 +229,7 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     close: () => {
       clearInterval(ticker)
       clearInterval(heartbeat)
+      if (draftTimer) clearTimeout(draftTimer)
       sessions.closeAll()
       asks.clear()
       try {

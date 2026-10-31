@@ -2,8 +2,9 @@ import type { Agent, ConversationPage, Message, Office } from '@agenthq/core'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { activityIcon, stateEmoji } from '../scene/plan'
 import { useAsks } from '../state/asks'
-import { addPage, emptyLoaded, fetchPage, matches, useChat, type Loaded } from '../state/conversation'
+import { addPage, emptyLoaded, fetchPage, landed, matches, useChat, type Loaded } from '../state/conversation'
 import { goToSession } from '../state/jump'
+import { useDrafts } from '../state/sessions'
 import { everyone, useOffices } from '../state/store'
 import { AskCard } from './AskCard'
 import { Composer } from './Composer'
@@ -46,6 +47,9 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
   const fetching = useRef(false)
   const again = useRef(false)
   const loadingOlder = useRef(false)
+  // The reply a session AgentHQ runs is writing, until its transcript line lands.
+  const rawDraft = useDrafts((state) => (agent.role === 'manager' ? state.drafts[office.sessionId] : undefined))
+  const draft = rawDraft && rawDraft.text.trim() && !landed(rawDraft, loaded.messages) ? rawDraft : null
 
   useEffect(() => {
     const controller = new AbortController()
@@ -127,7 +131,7 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
     } else if (following.current) {
       element.scrollTop = element.scrollHeight
     }
-  }, [loaded, query])
+  }, [loaded, query, draft?.text])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -192,7 +196,15 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
         {shown.map((message) => (
           <MessageView key={message.id} message={message} name={name} />
         ))}
-        {status === 'ready' && shown.length === 0 && (
+        {draft && !query && (
+          <div className={`msg assistant draft${draft.final ? '' : ' writing'}`} aria-live="polite">
+            <Meta who={name} at={null} extra={draft.final ? null : 'writing…'} />
+            <div className="bubble">
+              <Markdown text={draft.text} />
+            </div>
+          </div>
+        )}
+        {status === 'ready' && shown.length === 0 && !draft && (
           <p className="chat-note">{query ? 'Nothing found in what’s loaded.' : 'Nothing said yet.'}</p>
         )}
       </div>

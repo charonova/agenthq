@@ -1,3 +1,4 @@
+import type { Draft } from '@agenthq/core'
 import { create } from 'zustand'
 import { useChat } from './conversation'
 import { useToast } from './jump'
@@ -32,6 +33,18 @@ export const useSessions = create<SessionsState>()((set) => ({
   opening: null,
   compose: (composing) => set({ composing }),
 }))
+
+/** Replies being written in sessions AgentHQ runs, by session, as the server streams them. */
+export const useDrafts = create<{ drafts: Record<string, Draft> }>()(() => ({ drafts: {} }))
+
+export function receiveDraft({ sessionId, draft }: { sessionId: string; draft: Draft | null }) {
+  useDrafts.setState(({ drafts }) => {
+    const next = { ...drafts }
+    if (draft) next[sessionId] = draft
+    else delete next[sessionId]
+    return { drafts: next }
+  })
+}
 
 const RECENT = 'agenthq-folders'
 /** Folders sessions were started in, newest first, kept in this browser. */

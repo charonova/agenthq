@@ -61,6 +61,21 @@ export function query({ prompt, options }) {
           },
         })
         say(allowed ? 'Deployed.' : 'Not deployed.')
+      } else if (/slowly/i.test(text) && options.includePartialMessages) {
+        // The reply as it's written, a word at a time, as the SDK streams it; the transcript line comes last.
+        const reply = 'Once upon a time, a tiny office worked through the night.'
+        const event = (value) => ({ type: 'stream_event', event: value, parent_tool_use_id: null, uuid: `s-${Date.now()}` })
+        yield event({ type: 'message_start', message: {} })
+        yield event({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })
+        for (const word of reply.split(/(?<= )/)) {
+          await new Promise((resolve) => setTimeout(resolve, 350))
+          if (closed) return
+          yield event({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: word } })
+        }
+        yield event({ type: 'content_block_stop', index: 0 })
+        yield event({ type: 'message_stop' })
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        say(reply)
       } else {
         say(`You said: ${text}`)
       }

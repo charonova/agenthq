@@ -1,6 +1,6 @@
 import type { Message } from '@agenthq/core'
 import { describe, expect, it } from 'vitest'
-import { addPage, emptyLoaded, matches } from '../src/state/conversation'
+import { addPage, emptyLoaded, landed, matches } from '../src/state/conversation'
 
 const bash = { name: 'Bash', activity: 'run', target: 'pnpm test' } as const
 const call = (id: string): Message => ({ kind: 'tool', id, at: null, tool: bash, input: 'pnpm test', result: null })
@@ -52,5 +52,20 @@ describe('loading a conversation page by page', () => {
     expect(matches(said('a', 'Fixed the Login bug'), 'login')).toBe(true)
     expect(matches({ ...call('t'), result: { text: '3 failed', isError: true } } as Message, 'FAILED')).toBe(true)
     expect(matches(said('a', 'hello'), 'bye')).toBe(false)
+  })
+})
+
+describe('a reply being written', () => {
+  const draft = { id: 'd', text: 'Once upon a time, a tiny office', startedAt: 10_000, final: false }
+  const reply = (text: string, at: number): Message => ({ kind: 'assistant', id: `r${at}`, at, text })
+
+  it('gives way to the transcript once a reply that starts the same way lands', () => {
+    expect(landed(draft, [])).toBe(false)
+    expect(landed(draft, [reply('Once upon a time, a tiny office worked through the night.', 14_000)])).toBe(true)
+  })
+
+  it('isn’t mistaken for an earlier reply that said the same', () => {
+    expect(landed(draft, [reply('Once upon a time, a tiny office worked.', 2_000)])).toBe(false)
+    expect(landed({ ...draft, text: '  ' }, [reply('  ', 14_000)])).toBe(false)
   })
 })

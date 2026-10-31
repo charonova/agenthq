@@ -1,4 +1,4 @@
-import type { ConversationPage, Message, ToolResult } from '@agenthq/core'
+import type { ConversationPage, Draft, Message, ToolResult } from '@agenthq/core'
 import { create } from 'zustand'
 
 /** The conversation open beside the office, if any. */
@@ -81,4 +81,20 @@ export function matches(message: Message, query: string): boolean {
           ? [message.result.text]
           : [message.text]
   return texts.some((text) => text?.toLowerCase().includes(needle))
+}
+
+/**
+ * Whether a reply being written has reached the transcript: a reply that starts the same way,
+ * written since it began. Then the transcript's line shows instead of the draft.
+ */
+export function landed(draft: Draft, messages: Message[]): boolean {
+  const start = draft.text.trim().slice(0, 200)
+  if (!start) return false
+  for (let i = messages.length - 1; i >= 0 && i >= messages.length - 12; i--) {
+    const message = messages[i]!
+    if (message.kind !== 'assistant') continue
+    // Transcript lines are written once the text is: never before it began.
+    if ((message.at ?? Number.POSITIVE_INFINITY) >= draft.startedAt - 1000 && message.text.trim().startsWith(start)) return true
+  }
+  return false
 }

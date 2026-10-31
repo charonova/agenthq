@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
-import type { Managed } from '@agenthq/core'
+import type { Draft, Managed } from '@agenthq/core'
 import type { Query, SDKMessage, SDKUserMessage, query as sdkQuery } from '@anthropic-ai/claude-agent-sdk'
 import type { Asks, Decision } from './asks.js'
 
@@ -10,7 +10,8 @@ import type { Asks, Decision } from './asks.js'
  * Sessions AgentHQ runs itself, through the Claude Agent SDK and the user's own `claude`:
  * started from the page, or resumed there. Each reads the messages you send as they come; its
  * permission prompts and questions wait in the same place as the hook's, for you to answer.
- * They save their transcript like any session, so the office shows them like any other.
+ * They save their transcript like any session, so the office shows them like any other; the
+ * reply being written streams to the page before the transcript has it.
  */
 
 export type Model = 'opus' | 'sonnet' | 'haiku'
@@ -19,11 +20,14 @@ export const models: Model[] = ['opus', 'sonnet', 'haiku']
 export const modes: Mode[] = ['default', 'acceptEdits', 'plan', 'auto']
 
 const MAX_MESSAGE = 100_000
+/** A finished draft stays this long, for its transcript line to land, then goes. */
+const DRAFT_KEEP = 20_000
 
 interface Running {
   query: Query
   send: (text: string) => void
   managed: Managed
+  draft: Draft | null
 }
 
 /** The user's Claude Code: `AGENTHQ_CLAUDE_PATH`, else `claude` on the PATH or where its installer puts it. */
@@ -44,6 +48,34 @@ export function findClaude(): string | null {
     }
   }
   return null
+}
+
+/**
+ * What a message from the session does to the reply being written (the lead's only, not its
+ * helpers'): a block of text starts one, its deltas add to it, and it's final once the block,
+ * the message or the turn ends.
+ */
+export function nextDraft(draft: Draft | null, message: SDKMessage, now: number): Draft | null {
+  const finish = () => (draft && !draft.final ? { ...draft, final: true } : draft)
+  if (message.type === 'result') return finish()
+  if (message.type === 'assistant') return message.parent_tool_use_id === null ? finish() : draft
+  if (message.type !== 'stream_event' || message.parent_tool_use_id !== null) return draft
+  const event = message.event
+  switch (event.type) {
+    case 'content_block_start':
+      return event.content_block.type === 'text'
+        ? { id: message.uuid, text: event.content_block.text ?? '', startedAt: now, final: false }
+        : finish()
+    case 'content_block_delta':
+      return draft && !draft.final && event.delta.type === 'text_delta'
+        ? { ...draft, text: draft.text + event.delta.text }
+        : draft
+    case 'content_block_stop':
+    case 'message_stop':
+      return finish()
+    default:
+      return draft
+  }
 }
 
 /** A queue the session reads from: each message you send, when you send it. */
@@ -73,6 +105,8 @@ export class Sessions {
   constructor(
     private readonly asks: Asks,
     private readonly changed: () => void,
+    /** The reply being written changed (null: there's none anymore). */
+    private readonly drafted: (sessionId: string, draft: Draft | null) => void = () => {},
   ) {}
 
   ids(): string[] {
@@ -82,6 +116,13 @@ export class Sessions {
   /** Whether AgentHQ runs this session, and how it's doing. */
   info(sessionId: string): Managed | null {
     return this.running.get(sessionId)?.managed ?? null
+  }
+
+  /** Every reply being written now, by session. */
+  drafts(): Record<string, Draft> {
+    const drafts: Record<string, Draft> = {}
+    for (const [id, session] of this.running) if (session.draft) drafts[id] = session.draft
+    return drafts
   }
 
   /** Starts a session in a folder with your first message. */
@@ -119,6 +160,7 @@ export class Sessions {
     if (!session) return
     this.running.delete(sessionId)
     session.query.close()
+    if (session.draft) this.drafted(sessionId, null)
     this.changed()
   }
 
@@ -154,6 +196,8 @@ export class Sessions {
         // Behave as Claude Code does in a terminal: its own prompt, the user's settings and CLAUDE.md.
         systemPrompt: { type: 'preset', preset: 'claude_code' },
         settingSources: ['user', 'project', 'local'],
+        // The reply as it's written, for the page to show before the transcript has it.
+        includePartialMessages: true,
         permissionMode: how.mode ?? 'default',
         ...(how.model ? { model: how.model } : {}),
         ...(how.sessionId ? { sessionId: how.sessionId } : {}),
@@ -174,16 +218,34 @@ export class Sessions {
         },
       },
     })
-    this.running.set(sessionId, { query: session, send, managed })
+    const running: Running = { query: session, send, managed, draft: null }
+    this.running.set(sessionId, running)
     send(text)
     this.changed()
-    void this.follow(sessionId, session, managed)
+    void this.follow(sessionId, running)
+  }
+
+  /** Keeps the reply being written, and drops a finished one once its transcript line has had time to land. */
+  private draft(sessionId: string, running: Running, message: SDKMessage) {
+    const draft = nextDraft(running.draft, message, Date.now())
+    if (draft === running.draft) return
+    running.draft = draft
+    this.drafted(sessionId, draft)
+    if (draft?.final) {
+      setTimeout(() => {
+        if (running.draft !== draft) return
+        running.draft = null
+        if (this.running.get(sessionId) === running) this.drafted(sessionId, null)
+      }, DRAFT_KEEP).unref?.()
+    }
   }
 
   /** Reads what the session does, for whether its turn is going on, and ends it when its process does. */
-  private async follow(sessionId: string, session: Query, managed: Managed) {
+  private async follow(sessionId: string, running: Running) {
+    const { query: session, managed } = running
     try {
       for await (const message of session as AsyncIterable<SDKMessage>) {
+        this.draft(sessionId, running, message)
         if (message.type === 'result') {
           managed.busy = false
           managed.error =
@@ -194,7 +256,10 @@ export class Sessions {
     } catch (error) {
       managed.error = (error as Error).message
     } finally {
-      if (this.running.get(sessionId)?.query === session) this.running.delete(sessionId)
+      if (this.running.get(sessionId) === running) {
+        this.running.delete(sessionId)
+        if (running.draft) this.drafted(sessionId, null)
+      }
       managed.busy = false
       this.changed()
     }

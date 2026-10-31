@@ -40,6 +40,25 @@ test('start a session from AgentHQ, answer its prompt, message it, end it and re
   await expect(chat.locator('.composer .btn.primary')).toHaveText('Send')
 })
 
+test('a reply streams in as it’s written, then its transcript line takes over', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('.new-session').click()
+  await page.locator('.dialog input').fill(project)
+  await page.locator('.dialog textarea').fill('Tell me a story, slowly')
+  await page.locator('.dialog .btn', { hasText: 'Start' }).click()
+  const chat = page.locator('.chat')
+  const draft = chat.locator('.msg.draft')
+  await expect(draft).toContainText('Once upon', { timeout: 15_000 })
+  await expect(draft).toContainText('writing…')
+  // Still being written: the transcript doesn't have it yet.
+  await expect(chat.locator('.msg.assistant:not(.draft)')).toHaveCount(0)
+  await page.waitForTimeout(700)
+  await page.screenshot({ path: 'test-results/streaming.png' })
+  await expect(chat.locator('.msg.assistant:not(.draft)').last()).toContainText('worked through the night.', { timeout: 15_000 })
+  await expect(draft).toHaveCount(0)
+  await chat.locator('.composer').getByRole('button', { name: 'End', exact: true }).click()
+})
+
 test('a session can’t start in a folder that doesn’t exist, and the endpoints are the page’s only', async ({ page, request }) => {
   expect((await request.post('/api/sessions/start', { data: { cwd: project, text: 'hi' } })).status()).toBe(403)
   await page.goto('/')
