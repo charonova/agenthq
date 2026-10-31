@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { MANAGER_DESK, T, blockedTiles, deskOf, props, roomHeight, seatAt } from '../src/scene/layout'
 import { findPath, nearestWalkable } from '../src/scene/path'
 import { doorOpen, stepSeat } from '../src/scene/motion'
-import { bubbleFor, planOffice } from '../src/scene/plan'
+import { bubbleFor, homeOf, planOffice, talkLines } from '../src/scene/plan'
 
 // Made-up offices shaped like the ones the server sends.
 const agent = (overrides: Partial<Agent>): Agent => ({
@@ -204,5 +204,27 @@ describe('the door', () => {
     expect(doorOpen([{ x: 125, y: 230, moving: true }], at)).toBe(true)
     expect(doorOpen([{ x: 125, y: 230, moving: false }], at)).toBe(false)
     expect(doorOpen([{ x: 300, y: 100, moving: true }], at)).toBe(false)
+  })
+})
+
+describe('lines between teammates', () => {
+  it('runs from the sender’s chair to the recipient’s, for people in the office only', () => {
+    const qa = agent({ id: 'q', name: 'qa' })
+    const api = agent({ id: 'a', name: 'api' })
+    const room = {
+      ...office([api, qa]),
+      talks: [
+        { from: 'api', to: 'qa', count: 2, at: 1 },
+        { from: 'qa', to: 'Manager', count: 1, at: 1 },
+        { from: 'ghost', to: 'qa', count: 1, at: 1 },
+      ],
+    }
+    const lines = talkLines(room)
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toEqual({
+      from: { x: homeOf(api, room).x, y: homeOf(api, room).y - 8 },
+      to: { x: homeOf(qa, room).x, y: homeOf(qa, room).y - 8 },
+      count: 2,
+    })
   })
 })

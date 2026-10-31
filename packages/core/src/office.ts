@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { runningSessions, type RunningSession } from './processes.js'
 import { applyStatus, stateOf } from './state.js'
 import { readHeadLines, readTail, readTailLines } from './tail.js'
-import type { Activity, Agent, Office, Role, Tail } from './types.js'
+import { readTasks } from './tasks.js'
+import type { Activity, Agent, Office, Role, Tail, Talk } from './types.js'
 
 /** Claude Code's folder: `AGENTHQ_CLAUDE_HOME`, then `CLAUDE_CONFIG_DIR`, then `~/.claude`. */
 export function claudeHome(env: NodeJS.ProcessEnv = process.env): string {
@@ -186,6 +187,7 @@ export function discoverOffices(options: DiscoverOptions = {}): Office[] {
     // A running session stays in the building however long it waits; others close after a while.
     if (now - newest > liveFor && !owner) continue
     const office = buildOffice({
+      home,
       sessionId,
       sessionPath,
       folder,
@@ -205,6 +207,7 @@ export function discoverOffices(options: DiscoverOptions = {}): Office[] {
 }
 
 interface BuildInput {
+  home: string
   sessionId: string
   sessionPath: string
   folder: string
@@ -219,9 +222,11 @@ interface BuildInput {
 }
 
 function buildOffice(input: BuildInput): Office {
-  const { sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor, owner, ended } = input
+  const { home, sessionId, sessionPath, folder, subagentsDir, subagentFiles, now, liveFor, deskFor, owner, ended } = input
+  const sent = new Map<string, Tail['sent']>()
   const modified = mtime(sessionPath)
   const leadTail = tailOf(sessionPath, true)
+  sent.set('Manager', leadTail.sent)
   const manager: Agent = {
     id: sessionId,
     name: 'Manager',
@@ -270,6 +275,7 @@ function buildOffice(input: BuildInput): Office {
     // Old work stays out of the office: a teammate keeps a desk for a while, a helper only while live.
     if (now - updated > (role === 'staff' ? deskFor : liveFor)) continue
     const tail = tailOf(path)
+    if (role === 'staff') sent.set(meta.name ?? meta.description ?? meta.agentType ?? id, tail.sent)
     const agent: Agent = {
       id,
       name: meta.name ?? meta.description ?? meta.agentType ?? id,
@@ -314,9 +320,26 @@ function buildOffice(input: BuildInput): Office {
     interns,
     wentHome,
     process: owner ? { pid: owner.pid, status: owner.status, waitingFor: owner.waitingFor } : null,
+    talks: talksOf(sent),
+    tasks: readTasks(home, sessionId, now),
     ended,
     updatedAt: Math.max(modified, ...staff.map((a) => a.updatedAt), ...interns.map((a) => a.updatedAt)),
   }
+}
+
+/** Names a teammate uses for the lead when it sends a message. */
+const leadNames = new Set(['main', 'lead', 'team-lead', 'manager', 'leader'])
+
+/** Who messaged whom, by the names the office shows; most recent first. */
+export function talksOf(sent: Map<string, Tail['sent']>): Talk[] {
+  const talks: Talk[] = []
+  for (const [from, to] of sent) {
+    for (const [recipient, { count, at }] of Object.entries(to)) {
+      const name = leadNames.has(recipient.toLowerCase()) ? 'Manager' : recipient
+      if (name !== from) talks.push({ from, to: name, count, at })
+    }
+  }
+  return talks.sort((a, b) => b.at - a.at)
 }
 
 /** While working: the tool it's waiting on, or thinking once that tool answered. */

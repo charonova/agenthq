@@ -24,6 +24,7 @@ export function WorldView() {
         theme: settings.theme,
         speed: settings.speed,
         reduced: useReducedMotion.getState().reduced,
+        talks: settings.talks,
       })
       void world.setLooks(settings.looks)
     }

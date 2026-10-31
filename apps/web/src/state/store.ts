@@ -57,6 +57,8 @@ interface Settings {
   theme: Theme
   speed: Speed
   motion: Motion
+  /** Lines between teammates who message each other. */
+  talks: boolean
   /** Offices hidden one by one, by session. */
   hidden: string[]
   hideEnded: boolean
@@ -101,6 +103,7 @@ export const useSettings = create<Settings>()(
       theme: 'clock',
       speed: 'normal',
       motion: 'system',
+      talks: true,
       hidden: [],
       hideEnded: false,
       hideCodex: false,

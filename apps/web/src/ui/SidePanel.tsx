@@ -111,6 +111,7 @@ function OfficePanel({ office }: { office: Office }) {
         {internsOf(office.sessionId).map((intern) => row(intern, 'intern'))}
         {office.staff.map((member) => [row(member, 'staff'), ...internsOf(member.id).map((intern) => row(intern, 'intern'))])}
       </div>
+      <TeamInsight office={office} now={now} />
       {selected && (
         <Details
           key={selected.id}
@@ -122,6 +123,55 @@ function OfficePanel({ office }: { office: Office }) {
         />
       )}
     </>
+  )
+}
+
+/** Who messaged whom lately, and the team's shared tasks. */
+function TeamInsight({ office, now }: { office: Office; now: number }) {
+  const talks = office.talks ?? []
+  const tasks = office.tasks ?? []
+  if (talks.length === 0 && tasks.length === 0) return null
+  const done = tasks.filter((task) => task.status === 'completed').length
+  return (
+    <div className="insight">
+      {talks.length > 0 && (
+        <details className="talks" open>
+          <summary>💬 Who talked to whom</summary>
+          <ul>
+            {talks.map((talk) => (
+              <li key={`${talk.from}>${talk.to}`}>
+                <b>{talk.from}</b> → <b>{talk.to}</b>
+                <span>
+                  {talk.count === 1 ? 'once' : `${talk.count} times`}
+                  {talk.at > 0 ? ` · ${agoText(talk.at, now)}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {tasks.length > 0 && (
+        <details className="tasks" open>
+          <summary>
+            📋 Tasks · {done} of {tasks.length} done
+          </summary>
+          <ul>
+            {tasks.map((task) => (
+              <li key={task.id} className={task.status}>
+                <span className="mark" aria-label={task.status.replace('_', ' ')}>
+                  {task.status === 'completed' ? '✓' : task.status === 'in_progress' ? '▶' : '○'}
+                </span>
+                <span className="subject">{task.subject}</span>
+                {task.owner && <small>{task.owner}</small>}
+                {task.status !== 'completed' && task.blockedBy.length > 0 && (
+                  <small>waits on #{task.blockedBy.join(', #')}</small>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
   )
 }
 

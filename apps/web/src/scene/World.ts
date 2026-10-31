@@ -18,6 +18,8 @@ export interface ViewOptions {
   speed: Speed
   /** People step straight to where they go, nothing blinks, and the camera cuts instead of gliding. */
   reduced: boolean
+  /** Lines between teammates who message each other. */
+  talks: boolean
 }
 
 export interface WorldEvents {
@@ -93,7 +95,7 @@ export class World {
   private disposed = false
   private elapsed = 0
   private compact = true
-  private view: ViewOptions = { theme: 'clock', speed: 'normal', reduced: false }
+  private view: ViewOptions = { theme: 'clock', speed: 'normal', reduced: false, talks: true }
   /** Something changed outside the offices' own ticks (offices came or went, a selection…): draw the next frame. */
   private dirty = true
   private looks: Record<string, LookChoice> = {}
@@ -174,6 +176,7 @@ export class World {
         const created = new Floor(office)
         created.scene.setLooks(this.looks)
         created.scene.reduced = this.view.reduced
+        created.scene.setShowTalks(this.view.talks)
         this.floors.set(office.sessionId, created)
         this.viewport.addChild(created)
       }
@@ -224,7 +227,10 @@ export class World {
   async setView(view: ViewOptions) {
     await this.ready
     this.view = view
-    for (const floor of this.floors.values()) floor.scene.reduced = view.reduced
+    for (const floor of this.floors.values()) {
+      floor.scene.reduced = view.reduced
+      floor.scene.setShowTalks(view.talks)
+    }
     this.dirty = true
   }
 

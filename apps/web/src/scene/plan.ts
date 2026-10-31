@@ -124,6 +124,24 @@ function visit(agent: Agent, office: Office): Spot | null {
   return { x: tx * T + 36, y: ty * T - 6, pose: 'stand', lift: 0 }
 }
 
+/** Where the lines between teammates who message each other run: chest-high at each one's chair. */
+export function talkLines(office: Office): { from: Point; to: Point; count: number }[] {
+  const byName = new Map<string, Agent>([
+    ['Manager', office.manager],
+    ...office.staff.map((agent) => [agent.name, agent] as const),
+  ])
+  const lines: { from: Point; to: Point; count: number }[] = []
+  for (const talk of office.talks ?? []) {
+    const from = byName.get(talk.from)
+    const to = byName.get(talk.to)
+    if (!from || !to || from === to) continue
+    const a = homeOf(from, office)
+    const b = homeOf(to, office)
+    lines.push({ from: { x: a.x, y: a.y - 8 }, to: { x: b.x, y: b.y - 8 }, count: talk.count })
+  }
+  return lines
+}
+
 /** The agent's own chair: the manager's desk, a staff desk, or the table beside the boss. */
 export function homeOf(agent: Agent, office: Office): Point {
   if (agent.role === 'manager') return seatAt(MANAGER_DESK.tx, MANAGER_DESK.ty)

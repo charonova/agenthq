@@ -132,6 +132,7 @@ export function readTail(lines: string[]): Tail {
     contextTokens: null,
     lastEventAt: null,
     history: [],
+    sent: {},
   }
   for (const line of lines) {
     const entry = parse(line)
@@ -158,6 +159,12 @@ export function readTail(lines: string[]): Tail {
         if (part.type === 'text' && str(part.text)) tail.lastText = short(String(part.text), 140)
         if (part.type === 'tool_use') {
           tail.tool = describeTool(String(part.name ?? 'tool'), (part.input ?? {}) as Json)
+          // A message to a teammate (not a broadcast to everyone).
+          if (part.name === 'SendMessage' && tail.tool.target && tail.tool.target !== '*') {
+            const sent = (tail.sent[tail.tool.target] ??= { count: 0, at: 0 })
+            sent.count++
+            if (at) sent.at = Math.max(sent.at, Date.parse(at) || 0)
+          }
           if (at) tail.history.push({ at: Date.parse(at), tool: tail.tool })
           tail.step = 'calledTool'
         }

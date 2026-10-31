@@ -52,6 +52,8 @@ export interface Tail {
   lastEventAt: number | null
   /** Its latest tool calls, oldest first (at most `HISTORY` of them). */
   history: Step[]
+  /** Whom it messaged (`SendMessage`), by recipient: how often, and when last. */
+  sent: Record<string, { count: number; at: number }>
 }
 
 export type Role = 'manager' | 'staff' | 'intern'
@@ -85,6 +87,24 @@ export interface Agent {
   transcript: string
 }
 
+/** Messages from one agent to another, in the office's recent past. Names as the office shows them ("Manager", "qa"). */
+export interface Talk {
+  from: string
+  to: string
+  count: number
+  at: number
+}
+
+/** A task on the team's shared list (Claude Code's TaskCreate…), for the whiteboard. */
+export interface TeamTask {
+  id: string
+  subject: string
+  status: 'pending' | 'in_progress' | 'completed'
+  /** Who took it, when someone did. */
+  owner: string | null
+  blockedBy: string[]
+}
+
 /** One live session (Claude Code or Codex): an office. */
 export interface Office {
   /** Which agent runs it. */
@@ -103,6 +123,10 @@ export interface Office {
   /** Its process has ended (known only where Claude Code keeps `~/.claude/sessions`). */
   ended: boolean
   updatedAt: number
+  /** Who messaged whom lately. */
+  talks?: Talk[]
+  /** The team's shared tasks, when it has any. */
+  tasks?: TeamTask[]
   /** Run by AgentHQ itself (started or resumed from the page), so the page can message it. */
   managed?: Managed | null
 }

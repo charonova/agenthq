@@ -80,7 +80,7 @@ function Check({ checked, onChange, children }: { checked: boolean; onChange: ()
 }
 
 function LookAndMotion() {
-  const { theme, speed, motion, set } = useSettings()
+  const { theme, speed, motion, talks, set } = useSettings()
   const reduced = useReducedMotion((state) => state.reduced)
   return (
     <section id="settings-office">
@@ -115,6 +115,9 @@ function LookAndMotion() {
         ]}
         onChange={(motion) => set({ motion })}
       />
+      <Check checked={talks} onChange={() => set({ talks: !talks })}>
+        Lines between teammates who message each other
+      </Check>
       <small className="note">
         {reduced
           ? 'Reduced now: people step straight to where they go, nothing blinks, and the camera cuts instead of gliding.'

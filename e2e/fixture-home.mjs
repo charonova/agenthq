@@ -141,7 +141,10 @@ export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
   shop(
     'aqa-2',
     teammate('qa', 'green'),
-    (cwd) => [tool(cwd, now, 60, 'Bash', { command: 'pnpm vitest run', description: 'Run the export tests' })],
+    (cwd) => [
+      tool(cwd, now, 90, 'SendMessage', { to: 'team-lead', message: 'Starting on the tests' }),
+      tool(cwd, now, 60, 'Bash', { command: 'pnpm vitest run', description: 'Run the export tests' }),
+    ],
     60,
   )
   shop('adocs-3', teammate('docs', 'purple'), (cwd) => [tool(cwd, now, 3, 'Read', { file_path: `${cwd}/README.md` })], 3)
@@ -154,6 +157,23 @@ export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
     (cwd) => [tool(cwd, now, 2, 'WebSearch', { query: 'csv streaming node' })],
     2,
   )
+
+  // The shop team's shared tasks, as Claude Code keeps them.
+  mkdirSync(join(root, 'teams', 'shop-team'), { recursive: true })
+  writeFileSync(
+    join(root, 'teams', 'shop-team', 'config.json'),
+    JSON.stringify({ name: 'shop-team', leadSessionId: 'session-shop' }),
+  )
+  mkdirSync(join(root, 'tasks', 'shop-team'), { recursive: true })
+  const task = (id, subject, status, owner, blockedBy = []) =>
+    writeFileSync(
+      join(root, 'tasks', 'shop-team', `${id}.json`),
+      JSON.stringify({ id, subject, description: subject, status, ...(owner ? { owner } : {}), blocks: [], blockedBy }),
+    )
+  task('1', 'Write the CSV export', 'in_progress', 'api')
+  task('2', 'Test the export', 'in_progress', 'qa', ['1'])
+  task('3', 'Document the export', 'pending', null, ['1'])
+  task('4', 'Pick the columns', 'completed', 'ui')
 
   const blog = session(
     'blog',

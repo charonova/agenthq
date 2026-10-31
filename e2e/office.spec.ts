@@ -209,3 +209,15 @@ test('the keyboard alone: Tab and Enter into an office, a person and their conve
   await expect(page.locator('.settings')).toHaveCount(0)
   await expect(page.locator('.gear')).toBeFocused()
 })
+
+test('who talked to whom, and the team’s tasks', async ({ page }) => {
+  await page.goto('/#/office/session-shop')
+  const talks = page.locator('.insight .talks')
+  await expect(talks).toContainText('ui → api')
+  await expect(talks).toContainText('qa → Manager')
+  const tasks = page.locator('.insight .tasks')
+  await expect(tasks).toContainText('1 of 4 done')
+  await expect(tasks.locator('li.in_progress', { hasText: 'Test the export' })).toContainText('waits on #1')
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: 'test-results/insight.png' })
+})

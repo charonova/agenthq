@@ -5,7 +5,7 @@ import { lookFor, type Look, type LookChoice, type Pose } from './art/people'
 import { MANAGER_DESK, T, W, blockedTiles, deskOf, door, props, roomHeight, seatAt, type Point } from './layout'
 import { SEATED, SIT_DROP, doorOpen, stepSeat } from './motion'
 import { findPath } from './path'
-import { planOffice, type Spot } from './plan'
+import { planOffice, talkLines, type Spot } from './plan'
 import { PERSON, animatedProps, deskTexture, doorTexture, meetingTableTexture, personTexture, roomTexture } from './textures'
 
 const WALK_SPEED = 42 // art pixels per second
@@ -90,6 +90,12 @@ export class OfficeScene extends Container {
   private depth = new Container({ sortableChildren: true })
   private desks: Sprite[] = []
   private night = new Graphics()
+  /** Lines between teammates who message each other. */
+  private talks = new Graphics()
+  /** The team's tasks, as cards on the whiteboard. */
+  private board = new Graphics()
+  /** Whether the lines between teammates show (a setting). */
+  showTalks = true
   private labels = new Container()
   private bubbles = new Container()
   private selection = new Graphics()
@@ -121,6 +127,8 @@ export class OfficeScene extends Container {
     this.depth.addChild(table)
     this.addChild(
       this.room,
+      this.board,
+      this.talks,
       this.door,
       p.window,
       p.rack,
@@ -149,6 +157,8 @@ export class OfficeScene extends Container {
       this.door.position.set(7 * T, height * T - 16)
     }
     this.grid = blockedTiles(office)
+    this.drawTalks(office)
+    this.drawBoard(office)
     this.layoutDesks(office)
     this.layoutLabels(office)
 
@@ -217,6 +227,39 @@ export class OfficeScene extends Container {
     person.spot = spot
     if (!moved && person.path.length === 0) return
     if (moved) person.path = findPath(this.grid, { x: person.x, y: person.y }, spot)
+  }
+
+  private drawTalks(office: Office) {
+    this.talks.clear()
+    if (!this.showTalks) return
+    for (const { from, to, count } of talkLines(office)) {
+      this.talks
+        .moveTo(from.x, from.y)
+        .lineTo(to.x, to.y)
+        .stroke({ color: 0xffd479, alpha: Math.min(0.2 + count * 0.08, 0.6), width: 1 })
+        .circle(to.x, to.y, 1.6)
+        .fill({ color: 0xffd479, alpha: 0.7 })
+    }
+  }
+
+  /** Lines on or off; drawn again at once. */
+  setShowTalks(show: boolean) {
+    if (show === this.showTalks) return
+    this.showTalks = show
+    this.drawTalks(this.office)
+  }
+
+  /** Up to twelve cards on the whiteboard, by status: waiting yellow, in progress blue, done green. */
+  private drawBoard(office: Office) {
+    this.board.clear()
+    const tasks = office.tasks ?? []
+    if (tasks.length === 0) return
+    const x = props.whiteboard * T
+    this.board.rect(x + 2, 4, 2 * T - 4, 19).fill({ color: 0xf7f9fb })
+    const color = { pending: 0xffd479, in_progress: 0x79b8ff, completed: 0x4cd97b }
+    tasks.slice(0, 12).forEach((task, i) => {
+      this.board.rect(x + 3 + (i % 4) * 7, 5 + Math.floor(i / 4) * 6, 5, 4).fill({ color: color[task.status] })
+    })
   }
 
   private layoutDesks(office: Office) {

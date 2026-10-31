@@ -1198,3 +1198,56 @@ summary:focus-visible,
   outline: 2px solid var(--yellow);
   outline-offset: -2px;
 }
+
+/* Who talked to whom, and the team's tasks, under an office's people. */
+.insight {
+  display: grid;
+  gap: 4px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.insight summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 4px 0;
+}
+.insight ul {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.insight li {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.insight li span,
+.insight li small {
+  color: var(--faint);
+}
+.insight .tasks .subject {
+  color: var(--text);
+  flex: 1;
+  min-width: 60%;
+}
+.insight .tasks .completed .subject {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+.insight .mark {
+  width: 12px;
+  text-align: center;
+}
+.insight .in_progress .mark {
+  color: #79b8ff;
+}
+.insight .completed .mark {
+  color: var(--green);
+}
