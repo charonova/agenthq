@@ -1,0 +1,4 @@
+# Unix line endings everywhere, so formatting checks agree on Windows too.
+* text=auto eol=lf
+*.png binary
+*.gif binary
