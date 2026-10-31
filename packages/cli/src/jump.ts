@@ -86,9 +86,10 @@ const editorStorage: Record<string, string> = {
 }
 
 /** A shell-safe way to resume the session where it ran. */
-export function resumeCommand(session: { sessionId: string; cwd: string | null }): string {
+export function resumeCommand(session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' }): string {
   const quote = (text: string) => `'${text.replace(/'/g, `'\\''`)}'`
-  return `${session.cwd ? `cd ${quote(session.cwd)} && ` : ''}claude --resume ${session.sessionId}`
+  const resume = session.kind === 'codex' ? `codex resume ${session.sessionId}` : `claude --resume ${session.sessionId}`
+  return `${session.cwd ? `cd ${quote(session.cwd)} && ` : ''}${resume}`
 }
 
 /** What to do to bring a session forward, as close to it as its app allows. */
@@ -196,9 +197,13 @@ async function perform(action: JumpAction, host: Host | null): Promise<JumpResul
  * way to (not running anymore, another system, an app we can't steer), the page gets the
  * command that resumes it instead.
  */
-export async function jumpTo(home: string, session: { sessionId: string; cwd: string | null }): Promise<JumpResult> {
+export async function jumpTo(
+  home: string,
+  session: { sessionId: string; cwd: string | null; kind?: 'claude' | 'codex' },
+): Promise<JumpResult> {
   // AGENTHQ_JUMP=copy: never open windows, only copy the command (tests, or a preference).
-  if (process.env.AGENTHQ_JUMP === 'copy') {
+  // Codex keeps no record of which process runs which thread: its command is copied.
+  if (process.env.AGENTHQ_JUMP === 'copy' || session.kind === 'codex') {
     return { done: 'copy', message: 'Copied the command that resumes it', command: resumeCommand(session) }
   }
   const running: RunningSession | undefined = runningSessions(home).get(session.sessionId)

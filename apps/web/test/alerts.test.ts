@@ -22,6 +22,7 @@ const agent = (overrides: Partial<Agent>): Agent => ({
 })
 
 const office = (staff: Agent[], manager: Partial<Agent> = {}): Office => ({
+  kind: 'claude',
   sessionId: 's1',
   project: 'shop',
   cwd: null,

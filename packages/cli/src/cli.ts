@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { claudeHome, discoverOffices, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
+import { claudeHome, codexHome, discoverCodexOffices, discoverOffices, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
 import type { Agent, Office } from '@agenthq/core'
 
 const args = process.argv.slice(2)
@@ -35,7 +35,9 @@ function printOffices(offices: Office[]): void {
   }
   for (const office of offices) {
     const busy = [office.manager, ...office.staff, ...office.interns].filter((a) => a.state === 'working').length
-    console.log(`\n🏢 ${office.project}${office.title ? ` · ${office.title}` : ''}  (${busy} working)`)
+    console.log(
+      `\n🏢 ${office.kind === 'codex' ? '[Codex] ' : ''}${office.project}${office.title ? ` · ${office.title}` : ''}  (${busy} working)`,
+    )
     console.log(`   ${line(office.manager)}`)
     for (const member of office.staff) {
       console.log(`   ├ ${line(member)}`)
@@ -73,7 +75,10 @@ function ago(time: number): string {
 }
 
 if (args.includes('--list') || args.includes('--json')) {
-  const offices = discoverOffices({ home, ignore: ignoreFrom() })
+  const offices = [
+    ...discoverOffices({ home, ignore: ignoreFrom() }),
+    ...discoverCodexOffices({ home: codexHome(), ignore: ignoreFrom() }),
+  ].sort((a, b) => b.updatedAt - a.updatedAt)
   if (args.includes('--json')) console.log(JSON.stringify(offices, null, 2))
   else printOffices(offices)
 } else {

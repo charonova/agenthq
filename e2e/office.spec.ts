@@ -4,8 +4,9 @@ test('the building lists every live office', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.live')).toHaveText(/Live/)
   const rows = page.locator('.office-row')
-  await expect(rows).toHaveCount(3)
+  await expect(rows).toHaveCount(4)
   await expect(rows.filter({ hasText: 'shop' })).toHaveCount(1)
+  await expect(rows.filter({ hasText: 'mobile' })).toContainText('codex')
   await expect(page.locator('.world canvas')).toBeVisible()
   await page.screenshot({ path: 'test-results/building.png' })
 })
@@ -32,7 +33,7 @@ test('an office shows its manager, staff and interns, with details on click', as
 
 test('the "need you" counter goes to whoever is waiting', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.office-row')).toHaveCount(3)
+  await expect(page.locator('.office-row')).toHaveCount(4)
   // The made-up blog session's manager waits on a command it ran.
   await page.locator('.chip-button').click()
   await expect(page).toHaveURL(/#\/office\/session-blog$/)
@@ -70,4 +71,16 @@ test('only the office page can ask to open a window', async ({ request }) => {
   expect(asked.status()).toBe(403)
   const unknown = await request.post('/api/jump', { data: { sessionId: 'nope' }, headers: { 'X-AgentHQ': '1' } })
   expect(unknown.status()).toBe(404)
+})
+
+test('a Codex thread is an office too, with its sub-agents as staff', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await page.locator('.office-row', { hasText: 'mobile' }).click()
+  await expect(page.locator('.office-head p')).toContainText('Sign in with Apple')
+  await expect(page.locator('.person', { hasText: 'Manager' })).toContainText('Login.tsx')
+  await expect(page.locator('.person', { hasText: 'guardian' })).toContainText('pnpm test')
+  await page.locator('.person', { hasText: 'Manager' }).click()
+  await page.locator('.go').click()
+  await expect(page.locator('.toast')).toContainText('codex resume codex-mobile')
 })

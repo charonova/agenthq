@@ -6,14 +6,16 @@ import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { done, makeClaudeHome, tool } from '../e2e/fixture-home.mjs'
+import { done, makeClaudeHome, makeCodexHome, tool } from '../e2e/fixture-home.mjs'
 
 const port = 4798
 const out = 'docs/media'
 const home = makeClaudeHome(mkdtempSync(join(tmpdir(), 'agenthq-media-')))
+// Codex too: a real session of the developer's must never end up in a picture.
+const codex = makeCodexHome(mkdtempSync(join(tmpdir(), 'agenthq-media-codex-')))
 const server = spawn(process.execPath, ['packages/cli/dist/cli.js', '--no-open', '--port', String(port)], {
   stdio: 'ignore',
-  env: { ...process.env, AGENTHQ_CLAUDE_HOME: home, AGENTHQ_JUMP: 'copy' },
+  env: { ...process.env, AGENTHQ_CLAUDE_HOME: home, CODEX_HOME: codex, AGENTHQ_JUMP: 'copy' },
 })
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -99,4 +101,5 @@ try {
 } finally {
   server.kill()
   rmSync(home, { recursive: true, force: true })
+  rmSync(codex, { recursive: true, force: true })
 }

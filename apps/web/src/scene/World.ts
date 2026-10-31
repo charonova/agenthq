@@ -48,7 +48,8 @@ class Floor extends Container {
     const everyone = [office.manager, ...office.staff, ...office.interns]
     const waiting = everyone.some((agent) => agent.state === 'waiting')
     const working = everyone.some((agent) => agent.state === 'working')
-    const name = office.title ? `${office.project} · ${office.title}` : office.project
+    const project = office.kind === 'codex' ? `Codex · ${office.project}` : office.project
+    const name = office.title ? `${project} · ${office.title}` : project
     this.title.text = office.ended ? `${name} · ended` : name
     // An ended session's office stays a while, dimmed, then closes.
     this.scene.alpha = office.ended ? 0.55 : 1

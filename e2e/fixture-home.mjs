@@ -121,3 +121,56 @@ export function makeClaudeHome(root, now = Date.now(), pid = process.pid) {
   session('api', 'session-api', 'Fix the login redirect', (cwd) => [prompt(cwd, now, 30, 'fix it'), result(cwd, now, 1)], 1)
   return root
 }
+
+/** A made-up ~/.codex with one live thread and its "guardian" sub-agent, shaped like Codex's rollouts. */
+export function makeCodexHome(root, now = Date.now()) {
+  const date = new Date(now)
+  const dir = join(
+    root,
+    'sessions',
+    String(date.getFullYear()),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  )
+  mkdirSync(dir, { recursive: true })
+  const cwd = '/Users/alex/Code/mobile'
+  const event = (ago, payload) => line({ timestamp: iso(now, ago), type: 'event_msg', payload })
+  const meta = (id, extra = {}) =>
+    line({
+      timestamp: iso(now, 600),
+      type: 'session_meta',
+      payload: { id, cwd, cli_version: '0.120.0', source: 'cli', ...extra },
+    })
+  const done = (ago, item) => event(ago, { type: 'item_completed', completed_at_ms: now - ago * 1000, item })
+  transcript(
+    join(dir, 'rollout-main.jsonl'),
+    [
+      meta('codex-mobile'),
+      line({ timestamp: iso(now, 590), type: 'turn_context', payload: { model: 'gpt-5.5-codex', cwd } }),
+      event(300, { type: 'task_started' }),
+      done(200, {
+        type: 'CommandExecution',
+        command: 'rg useAuth',
+        parsed_cmd: [{ type: 'search', cmd: 'rg', query: 'useAuth', path: 'src' }],
+      }),
+      done(3, { type: 'FileChange', changes: { [`${cwd}/src/screens/Login.tsx`]: {} } }),
+    ],
+    now,
+    3,
+  )
+  transcript(
+    join(dir, 'rollout-guardian.jsonl'),
+    [
+      meta('codex-guardian', { source: { subagent: { other: 'guardian' } }, parent_thread_id: 'codex-mobile' }),
+      event(60, { type: 'task_started' }),
+      done(4, { type: 'CommandExecution', command: 'pnpm test', parsed_cmd: [{ type: 'unknown', cmd: 'pnpm test' }] }),
+    ],
+    now,
+    4,
+  )
+  writeFileSync(
+    join(root, 'session_index.jsonl'),
+    line({ id: 'codex-mobile', thread_name: 'Sign in with Apple', updated_at: iso(now, 600) }) + '\n',
+  )
+  return root
+}

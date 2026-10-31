@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { watch, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { discoverOffices, type Office } from '@agenthq/core'
+import { codexHome, discoverCodexOffices, discoverOffices, type Office } from '@agenthq/core'
 import { jumpTo } from './jump.js'
 
 export interface ServerOptions {
@@ -30,13 +30,17 @@ const types: Record<string, string> = {
  * (working → coffee → couch).
  */
 export async function startServer({ home, port, ignore }: ServerOptions): Promise<{ url: string; close: () => void }> {
+  const codex = codexHome()
   const clients = new Set<ServerResponse>()
   let latest = ''
   let offices: Office[] = []
 
   const scan = () => {
     try {
-      offices = discoverOffices({ home, ignore })
+      // Claude Code's offices and Codex's, most recently busy first.
+      offices = [...discoverOffices({ home, ignore }), ...discoverCodexOffices({ home: codex, ignore })].sort(
+        (a, b) => b.updatedAt - a.updatedAt,
+      )
     } catch (error) {
       console.error('Couldn’t read the sessions:', error)
       return
@@ -166,7 +170,7 @@ async function handleJump(request: IncomingMessage, response: ServerResponse, of
   }
   const office = offices.find((candidate) => candidate.sessionId === sessionId)
   if (!office) return reply(404, { error: 'No such session in the office' })
-  reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd }))
+  reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd, kind: office.kind }))
 }
 
 function readBody(request: IncomingMessage, limit = 4096): Promise<string> {

@@ -26,6 +26,7 @@ const agent = (overrides: Partial<Agent>): Agent => ({
 
 function office(staff: Agent[], interns: Agent[] = [], manager: Partial<Agent> = {}): Office {
   return {
+    kind: 'claude',
     sessionId: 's1',
     project: 'shop',
     cwd: '/Users/me/Code/shop',

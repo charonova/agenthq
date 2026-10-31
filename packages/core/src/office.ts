@@ -296,6 +296,7 @@ function buildOffice(input: BuildInput): Office {
   manager.activity = activityOf(manager.state, leadTail)
   const cwd = leadTail.cwd
   return {
+    kind: 'claude',
     sessionId,
     project: cwd ? (cwd.split(/[\\/]/).filter(Boolean).pop() ?? folder) : projectFromFolder(folder),
     cwd,

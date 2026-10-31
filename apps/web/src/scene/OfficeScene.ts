@@ -227,7 +227,7 @@ export class OfficeScene extends Container {
       group.position.set(x, y)
       this.labels.addChild(group)
     }
-    tag('Manager', MANAGER_DESK.tx * T + 20, MANAGER_DESK.ty * T + 17, '#ffd479')
+    tag(office.kind === 'codex' ? 'Codex' : 'Manager', MANAGER_DESK.tx * T + 20, MANAGER_DESK.ty * T + 17, '#ffd479')
     office.staff.forEach((agent, i) => {
       const { tx, ty } = deskOf(i)
       tag(agent.name, tx * T + 16, ty * T + 17, '#e8ecf3')

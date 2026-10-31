@@ -78,8 +78,10 @@ export interface Agent {
   updatedAt: number
 }
 
-/** One live Claude Code session: an office. */
+/** One live session (Claude Code or Codex): an office. */
 export interface Office {
+  /** Which agent runs it. */
+  kind: 'claude' | 'codex'
   sessionId: string
   project: string
   cwd: string | null
