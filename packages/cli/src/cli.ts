@@ -17,7 +17,8 @@ Options:
   --port <n>        serve on another port (the next free one if it's taken)
   --no-open         don't open the browser
 
-Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Never writes to it.
+Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Only reads it, unless you turn on
+answering from AgentHQ (🔔 in the page): that adds one hook to its settings.json, after saving a copy.
 Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.
 AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it.`)
   process.exit(0)
