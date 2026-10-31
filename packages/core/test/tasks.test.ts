@@ -1,10 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { talksOf } from '../src/office.js'
 import { readTail } from '../src/tail.js'
 import { parseTask, readTasks, taskListOf } from '../src/tasks.js'
+import { addUsage, claudeTokens, sumTokens } from '../src/usage.js'
 
 // Shaped like Claude Code's own files, with made-up content.
 const send = (to: string, at: string) =>
@@ -82,5 +83,39 @@ describe('team tasks', () => {
     writeFileSync(join(home, 'tasks', 'shop-team', '.highwatermark'), '10')
     expect(readTasks(home, 'aaaa-1111', 1).map((t) => t.id)).toEqual(['2', '10'])
     expect(readTasks(home, 'bbbb-2222', 1)).toEqual([])
+  })
+})
+
+describe('tokens', () => {
+  const reply = (id: string, input: number, output: number) =>
+    JSON.stringify({
+      type: 'assistant',
+      message: {
+        id,
+        role: 'assistant',
+        content: [{ type: 'text', text: 'x' }],
+        usage: { input_tokens: input, cache_creation_input_tokens: 10, cache_read_input_tokens: 100, output_tokens: output },
+      },
+    })
+
+  it('counts a reply once, though Claude Code writes it in parts', () => {
+    const count = { input: 0, output: 0, seen: [] as string[] }
+    addUsage(count, [reply('msg_1', 5, 7), reply('msg_1', 5, 7), reply('msg_2', 1, 3), '{"type":"user","message":{}}', '{ half'])
+    expect(count).toMatchObject({ input: 115 + 111, output: 10 })
+  })
+
+  it('counts a transcript, then only what it grows by', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'agenthq-usage-'))
+    const path = join(dir, 'a.jsonl')
+    writeFileSync(path, reply('msg_1', 5, 7) + '\n')
+    expect(claudeTokens(path)).toEqual({ input: 115, output: 7, partial: false })
+    appendFileSync(path, reply('msg_2', 1, 3) + '\n' + reply('msg_3', 0, 1).slice(0, 20))
+    expect(claudeTokens(path)).toEqual({ input: 226, output: 10, partial: false })
+    expect(sumTokens([{ input: 1, output: 2, partial: false }, null, { input: 3, output: 4, partial: true }])).toEqual({
+      input: 4,
+      output: 6,
+      partial: true,
+    })
+    rmSync(dir, { recursive: true, force: true })
   })
 })

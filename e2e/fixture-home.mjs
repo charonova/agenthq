@@ -219,6 +219,10 @@ export function makeCodexHome(root, now = Date.now()) {
         parsed_cmd: [{ type: 'search', cmd: 'rg', query: 'useAuth', path: 'src' }],
       }),
       done(3, { type: 'FileChange', changes: { [`${cwd}/src/screens/Login.tsx`]: {} } }),
+      event(2, {
+        type: 'token_count',
+        info: { total_token_usage: { input_tokens: 182_000, output_tokens: 9_400 }, last_token_usage: { input_tokens: 41_000 } },
+      }),
     ],
     now,
     3,

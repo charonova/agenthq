@@ -138,3 +138,14 @@ describe('Codex threads', () => {
     expect(discoverCodexOffices({ home, now: NOW })[0]!.title).toBe('Login fix, take 2')
   })
 })
+
+describe('Codex tokens', () => {
+  it('takes Codex’s own running total for the thread', () => {
+    const tail = readCodexTail([
+      '{"timestamp":"2026-10-31T10:00:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":12000,"cached_input_tokens":9000,"output_tokens":800,"total_tokens":12800},"last_token_usage":{"input_tokens":3000,"output_tokens":200}}}}',
+      '{"timestamp":"2026-10-31T10:01:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":15500,"cached_input_tokens":11000,"output_tokens":950,"total_tokens":16450},"last_token_usage":{"input_tokens":3500,"output_tokens":150}}}}',
+    ])
+    expect(tail.tokens).toEqual({ input: 15500, output: 950, partial: false })
+    expect(tail.contextTokens).toBe(3500)
+  })
+})

@@ -3,7 +3,8 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { timing } from './state.js'
 import { HISTORY, describeTool, readHeadLines, readTailLines } from './tail.js'
-import type { Activity, Agent, Office, Rest, State, Step, Tool } from './types.js'
+import { sumTokens } from './usage.js'
+import type { Activity, Agent, Office, Rest, State, Step, Tokens, Tool } from './types.js'
 
 /**
  * Codex sessions as offices. Codex writes one transcript ("rollout") per thread in
@@ -81,6 +82,8 @@ export interface CodexTail {
   lastText: string | null
   model: string | null
   contextTokens: number | null
+  /** Codex's own running total for the thread. */
+  tokens: Tokens | null
   history: Step[]
 }
 
@@ -141,6 +144,7 @@ export function readCodexTail(lines: string[]): CodexTail {
     lastText: null,
     model: null,
     contextTokens: null,
+    tokens: null,
     history: [],
   }
   const openQuestions = new Set<string>()
@@ -169,6 +173,9 @@ export function readCodexTail(lines: string[]): CodexTail {
           const input = num(last?.input_tokens)
           // OpenAI's input count already includes the cached part.
           if (input !== null) tail.contextTokens = input
+          const total = ((payload.info as Json | undefined)?.total_token_usage ?? null) as Json | null
+          if (total && num(total.input_tokens) !== null)
+            tail.tokens = { input: num(total.input_tokens) ?? 0, output: num(total.output_tokens) ?? 0, partial: false }
           break
         }
         case 'item_completed': {
@@ -362,6 +369,7 @@ export function discoverCodexOffices(options: DiscoverCodexOptions = {}): Office
       lastText: tail.lastText,
       contextTokens: tail.contextTokens,
       history: tail.history,
+      tokens: tail.tokens,
       updatedAt: rollout.modified,
       transcript: rollout.path,
     }
@@ -390,6 +398,7 @@ export function discoverCodexOffices(options: DiscoverCodexOptions = {}): Office
       staff,
       interns: [],
       wentHome: 0,
+      tokens: sumTokens([manager, ...staff].map((agent) => agent.tokens)),
       process: null,
       ended: false,
       updatedAt: newest,

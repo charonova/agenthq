@@ -58,6 +58,14 @@ export interface Tail {
 
 export type Role = 'manager' | 'staff' | 'intern'
 
+/** Tokens used: everything read (prompts, files, cache) and everything written. */
+export interface Tokens {
+  input: number
+  output: number
+  /** Counted from the transcript's last part only (it's long): at least this many. */
+  partial: boolean
+}
+
 export interface Agent {
   id: string
   name: string
@@ -79,6 +87,8 @@ export interface Agent {
   contextTokens: number | null
   /** Its latest tool calls, oldest first: the timeline. */
   history: Step[]
+  /** Tokens it used, when known. */
+  tokens?: Tokens | null
   /** While waiting: what for, in Claude Code's words ("permission prompt", "input needed"…), when it says. */
   waitingFor?: string | null
   /** When its transcript last changed. */
@@ -123,6 +133,8 @@ export interface Office {
   /** Its process has ended (known only where Claude Code keeps `~/.claude/sessions`). */
   ended: boolean
   updatedAt: number
+  /** Tokens everyone in it used, when known. */
+  tokens?: Tokens | null
   /** Who messaged whom lately. */
   talks?: Talk[]
   /** The team's shared tasks, when it has any. */

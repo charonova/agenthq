@@ -9,6 +9,7 @@ export {
 } from './office.js'
 export { applyStatus, stateOf, timing, type StateInput } from './state.js'
 export { parseTask, readTasks, taskListOf, teamsByLead } from './tasks.js'
+export { addUsage, claudeTokens, sumTokens } from './usage.js'
 export { HISTORY, describeTool, readHeadLines, readTail, readTailLines } from './tail.js'
 export type * from './types.js'
 export { isAlive, runningSessions, waitingReasons, type RunningSession } from './processes.js'

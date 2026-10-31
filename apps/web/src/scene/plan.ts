@@ -1,4 +1,4 @@
-import type { Activity, Agent, Office } from '@agenthq/core'
+import type { Activity, Agent, Office, Tokens } from '@agenthq/core'
 import type { Pose } from './art/people'
 import { MANAGER_DESK, T, deskOf, lounge, props, seatAt, type Point } from './layout'
 
@@ -219,6 +219,19 @@ export function describe(agent: Agent, now = Date.now()): string {
       return bubble === '💭' ? 'Thinking' : (bubble ?? 'Working')
     }
   }
+}
+
+/** A count of tokens, short: 950, 12k, 3.4M. */
+export function shortCount(n: number): string {
+  if (n < 1000) return String(Math.round(n))
+  if (n < 1_000_000) return `${n < 10_000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') : Math.round(n / 1000)}k`
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
+}
+
+/** Tokens as a line: "1.2M in · 34k out", "at least …" when only the transcript's last part was counted. */
+export function tokensText(tokens: Tokens | null | undefined): string | null {
+  if (!tokens || tokens.input + tokens.output === 0) return null
+  return `${tokens.partial ? 'at least ' : ''}${shortCount(tokens.input)} in · ${shortCount(tokens.output)} out`
 }
 
 export function agoText(time: number, now = Date.now()): string {

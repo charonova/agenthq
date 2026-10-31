@@ -1,5 +1,5 @@
 import type { Agent, Office } from '@agenthq/core'
-import { activityIcon, agoText, describe, stateEmoji } from '../scene/plan'
+import { activityIcon, agoText, describe, stateEmoji, tokensText } from '../scene/plan'
 import { useAsks } from '../state/asks'
 import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
@@ -102,6 +102,7 @@ function OfficePanel({ office }: { office: Office }) {
         </button>
         <h2>{office.project}</h2>
         <p>{[office.title, office.cwd].filter(Boolean).join(' · ')}</p>
+        {tokensText(office.tokens) && <p className="tokens">🪙 {tokensText(office.tokens)}</p>}
       </div>
       <h3>
         {everyone(office).filter((a) => a.state !== 'gone').length} in the office · {office.wentHome} went home
@@ -197,6 +198,7 @@ function Details({
     ['Tool', agent.tool ? `${agent.tool.name}${agent.tool.target ? ` · ${agent.tool.target}` : ''}` : null],
     ['Model', agent.model],
     ['Context', agent.contextTokens ? `${Math.round(agent.contextTokens / 1000)}k tokens` : null],
+    ['Tokens', tokensText(agent.tokens)],
     ['Last seen', agoText(agent.updatedAt, now)],
     ['Claude Code', agent.role === 'manager' && status ? `${status}${agent.waitingFor ? ` · ${agent.waitingFor}` : ''}` : null],
   ]

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { MANAGER_DESK, T, blockedTiles, deskOf, props, roomHeight, seatAt } from '../src/scene/layout'
 import { findPath, nearestWalkable } from '../src/scene/path'
 import { doorOpen, stepSeat } from '../src/scene/motion'
-import { bubbleFor, homeOf, planOffice, talkLines } from '../src/scene/plan'
+import { bubbleFor, homeOf, planOffice, shortCount, talkLines, tokensText } from '../src/scene/plan'
 
 // Made-up offices shaped like the ones the server sends.
 const agent = (overrides: Partial<Agent>): Agent => ({
@@ -226,5 +226,16 @@ describe('lines between teammates', () => {
       to: { x: homeOf(qa, room).x, y: homeOf(qa, room).y - 8 },
       count: 2,
     })
+  })
+})
+
+describe('tokens', () => {
+  it('reads short', () => {
+    expect(shortCount(950)).toBe('950')
+    expect(shortCount(1234)).toBe('1.2k')
+    expect(shortCount(48_900)).toBe('49k')
+    expect(shortCount(3_400_000)).toBe('3.4M')
+    expect(tokensText({ input: 1_200_000, output: 34_000, partial: true })).toBe('at least 1.2M in · 34k out')
+    expect(tokensText({ input: 0, output: 0, partial: false })).toBeNull()
   })
 })

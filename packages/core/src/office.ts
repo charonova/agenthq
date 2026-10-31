@@ -5,6 +5,7 @@ import { runningSessions, type RunningSession } from './processes.js'
 import { applyStatus, stateOf } from './state.js'
 import { readHeadLines, readTail, readTailLines } from './tail.js'
 import { readTasks } from './tasks.js'
+import { claudeTokens, sumTokens } from './usage.js'
 import type { Activity, Agent, Office, Role, Tail, Talk } from './types.js'
 
 /** Claude Code's folder: `AGENTHQ_CLAUDE_HOME`, then `CLAUDE_CONFIG_DIR`, then `~/.claude`. */
@@ -241,6 +242,7 @@ function buildOffice(input: BuildInput): Office {
     lastText: leadTail.lastText,
     contextTokens: leadTail.contextTokens,
     history: leadTail.history,
+    tokens: claudeTokens(sessionPath),
     updatedAt: modified,
     transcript: sessionPath,
   }
@@ -296,6 +298,7 @@ function buildOffice(input: BuildInput): Office {
       lastText: tail.lastText,
       contextTokens: tail.contextTokens,
       history: tail.history,
+      tokens: claudeTokens(path),
       updatedAt: updated,
       transcript: path,
     }
@@ -320,6 +323,7 @@ function buildOffice(input: BuildInput): Office {
     interns,
     wentHome,
     process: owner ? { pid: owner.pid, status: owner.status, waitingFor: owner.waitingFor } : null,
+    tokens: sumTokens([manager, ...staff, ...interns].map((agent) => agent.tokens)),
     talks: talksOf(sent),
     tasks: readTasks(home, sessionId, now),
     ended,

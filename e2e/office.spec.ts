@@ -84,7 +84,7 @@ test('a Codex thread is an office too, with its sub-agents as staff', async ({ p
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   await page.locator('.office-row', { hasText: 'mobile' }).click()
-  await expect(page.locator('.office-head p')).toContainText('Sign in with Apple')
+  await expect(page.locator('.office-head p').first()).toContainText('Sign in with Apple')
   await expect(page.locator('.person', { hasText: 'Manager' })).toContainText('Login.tsx')
   await expect(page.locator('.person', { hasText: 'guardian' })).toContainText('pnpm test')
   await page.locator('.person', { hasText: 'Manager' }).click()
@@ -218,6 +218,15 @@ test('who talked to whom, and the team’s tasks', async ({ page }) => {
   const tasks = page.locator('.insight .tasks')
   await expect(tasks).toContainText('1 of 4 done')
   await expect(tasks.locator('li.in_progress', { hasText: 'Test the export' })).toContainText('waits on #1')
+  // Tokens for the office, and for one of them.
+  await expect(page.locator('.office-head .tokens')).toContainText(/\d+(\.\d)?k in · \d+(\.\d)?k out/)
+  await page.locator('.person', { hasText: 'qa' }).click()
+  await expect(page.locator('.details')).toContainText('Tokens')
   await page.waitForTimeout(800)
   await page.screenshot({ path: 'test-results/insight.png' })
+})
+
+test('a Codex thread’s tokens, from Codex’s own running total', async ({ page }) => {
+  await page.goto('/#/office/codex-mobile')
+  await expect(page.locator('.office-head .tokens')).toContainText('182k in · 9.4k out')
 })
