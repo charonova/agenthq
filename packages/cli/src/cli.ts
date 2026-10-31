@@ -6,7 +6,7 @@ const args = process.argv.slice(2)
 const home = claudeHome()
 
 if (args.includes('--help') || args.includes('-h')) {
-  console.log(`AgentHQ: a pixel-art office for your Claude Code sessions.
+  console.log(`AgentHQ: a pixel-art office for your Claude Code and Codex sessions.
 
 Usage:
   agenthq           open the office in your browser (http://localhost:4747)

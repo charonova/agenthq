@@ -411,17 +411,14 @@
     <section id="run">
       <div class="wrap">
         <div class="eyebrow pixel">Run it</div>
-        <h2>Two minutes, from source.</h2>
-        <p class="sub">
-          You need <a href="https://nodejs.org">Node.js</a> 20 or later and <a href="https://pnpm.io">pnpm</a>. An npm package
-          (<code>npx</code>) is coming.
-        </p>
+        <h2>One command.</h2>
+        <p class="sub">You need <a href="https://nodejs.org">Node.js</a> 20 or later.</p>
         <div class="term">
-          <span class="c"># get it</span>
-          git clone https://github.com/charonova/agenthq.git cd agenthq pnpm install
-
           <span class="c"># open the office at http://localhost:4747</span>
-          pnpm start
+          npx @charonova/agenthq
+
+          <span class="c"># or install it</span>
+          npm install -g @charonova/agenthq agenthq
         </div>
         <table>
           <tr>

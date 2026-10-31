@@ -14,20 +14,18 @@
 
 Every live session is an office. Its main agent is the manager, every teammate gets a desk, and the helpers they start sit beside them as interns. Working agents type at their desks, read at the bookshelf, run tests at the lab and walk over to talk to each other; idle ones get coffee, then nap on the couch.
 
-> Status: early (0.1). Not on npm yet: run it from source (below). Works on macOS, Linux and Windows.
+> Early (0.2), and moving fast. Works on macOS, Linux and Windows.
 
 ## Run it
 
-You need [Node.js](https://nodejs.org) 20 or later and [pnpm](https://pnpm.io).
+You need [Node.js](https://nodejs.org) 20 or later. One command:
 
 ```bash
-git clone https://github.com/charonova/agenthq.git
-cd agenthq
-pnpm install
-pnpm start        # builds, then opens the office at http://localhost:4747
+npx @charonova/agenthq          # opens the office at http://localhost:4747
+npx @charonova/agenthq --list   # or print it in the terminal
 ```
 
-`node packages/cli/dist/cli.js --list` prints the same offices in the terminal.
+Or install it: `npm install -g @charonova/agenthq`, then `agenthq`.
 
 <table>
   <tr>
