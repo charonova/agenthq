@@ -10,6 +10,7 @@ import {
   discoverOffices,
   forgetSessions,
   readConversation,
+  readReplay,
   type AskAnswer,
   type Draft,
   type Office,
@@ -211,6 +212,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     }
     if (url.pathname === '/api/conversation') {
       handleConversation(request, response, url, offices)
+      return
+    }
+    if (url.pathname === '/api/replay') {
+      handleReplay(request, response, url, offices)
       return
     }
     if (url.pathname === '/api/offices') {
@@ -496,6 +501,20 @@ function handleConversation(request: IncomingMessage, response: ServerResponse, 
   } catch {
     reply(404, { error: 'Its transcript can’t be read' })
   }
+}
+
+/**
+ * `GET /api/replay?session=…&hours=…`: a session's last hours (1 to 12), its agents' steps with
+ * their times, for replaying as a time-lapse. Guarded like the conversation: the page names a
+ * session in the office, never a file.
+ */
+function handleReplay(request: IncomingMessage, response: ServerResponse, url: URL, offices: Office[]) {
+  if (request.method !== 'GET' || !fromOwnPage(request)) return json(response, 403, { error: 'Not allowed' })
+  const office = offices.find((candidate) => candidate.sessionId === url.searchParams.get('session'))
+  if (!office) return json(response, 404, { error: 'No such session in the office' })
+  const hours = Math.min(12, Math.max(1, Number.parseInt(url.searchParams.get('hours') ?? '2', 10) || 2))
+  const agents = [office.manager, ...office.staff, ...office.interns]
+  json(response, 200, readReplay(office.sessionId, office.kind, agents, hours))
 }
 
 function readBody(request: IncomingMessage, limit = 4096): Promise<string> {

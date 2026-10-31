@@ -4,6 +4,7 @@ import { useAsks } from '../state/asks'
 import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
+import { startReplay } from '../state/replay'
 import { LookEditor } from './LookEditor'
 import { useNow } from './useNow'
 import { focusSoon } from '../state/useKeyboard'
@@ -103,6 +104,13 @@ function OfficePanel({ office }: { office: Office }) {
         <h2>{office.project}</h2>
         <p>{[office.title, office.cwd].filter(Boolean).join(' · ')}</p>
         {tokensText(office.tokens) && <p className="tokens">🪙 {tokensText(office.tokens)}</p>}
+        <button
+          className="btn replay"
+          onClick={() => void startReplay(office.sessionId)}
+          title="Its last two hours, as a time-lapse"
+        >
+          ⏪ Replay
+        </button>
       </div>
       <h3>
         {everyone(office).filter((a) => a.state !== 'gone').length} in the office · {office.wentHome} went home

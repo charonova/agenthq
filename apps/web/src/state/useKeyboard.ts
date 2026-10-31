@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { useChat } from './conversation'
+import { stopReplay, useReplay } from './replay'
 import { useSessions } from './sessions'
 import { useOffices, useSettingsPanel } from './store'
 
 /**
  * Esc steps back one thing at a time, whatever has focus: the new-session dialog, the settings,
- * the conversation, the selected person, then the office (back to the building). Focus goes
+ * a replay, the conversation, the selected person, then the office (back to the building). Focus goes
  * back to where you were, so Tab and Enter carry on from there.
  */
 export function useKeyboard() {
@@ -19,7 +20,8 @@ export function useKeyboard() {
       else if (useSettingsPanel.getState().open) {
         useSettingsPanel.getState().close()
         focusSoon('.gear')
-      } else if (useChat.getState().open) {
+      } else if (useReplay.getState().data) stopReplay()
+      else if (useChat.getState().open) {
         const { agentId } = useChat.getState().open!
         useChat.getState().close()
         focusSoon(`.person[data-agent="${CSS.escape(agentId)}"]`)

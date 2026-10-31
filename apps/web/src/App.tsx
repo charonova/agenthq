@@ -9,6 +9,7 @@ import { ChatPanel } from './ui/Chat'
 import { EmptyState } from './ui/EmptyState'
 import { Header } from './ui/Header'
 import { NewSession } from './ui/NewSession'
+import { ReplayBar } from './ui/ReplayBar'
 import { SettingsPanel } from './ui/Settings'
 import { SidePanel } from './ui/SidePanel'
 import { Toast } from './ui/Toast'
@@ -31,6 +32,7 @@ export function App() {
           <ChatPanel />
           <Toast />
           <NewSession />
+          <ReplayBar />
           <SettingsPanel />
         </section>
         <SidePanel />

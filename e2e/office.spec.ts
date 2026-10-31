@@ -252,3 +252,20 @@ test('find an agent by a file it touched, and everyone waiting', async ({ page }
   await expect(results.locator('li')).toHaveCount(1)
   await expect(results.locator('li')).toContainText('blog')
 })
+
+test('replay an office’s last hours as a time-lapse', async ({ page, request }) => {
+  expect((await request.get('/api/replay?session=session-shop')).status()).toBe(403)
+  await page.goto('/#/office/session-shop')
+  await page.locator('.office-head .replay').click()
+  const bar = page.locator('.replay-bar')
+  await expect(bar).toContainText('shop')
+  await expect(bar).toContainText(/\d+ steps/)
+  // Scrub to the start: before anything happened, nobody works.
+  await bar.getByRole('button', { name: 'Pause' }).click()
+  const slider = bar.locator('input[type="range"]')
+  await slider.fill(await slider.getAttribute('min'))
+  await page.waitForTimeout(600)
+  await page.screenshot({ path: 'test-results/replay.png' })
+  await bar.getByRole('button', { name: 'Back to live' }).click()
+  await expect(bar).toHaveCount(0)
+})
