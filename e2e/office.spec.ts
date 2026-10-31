@@ -3,9 +3,10 @@ import { expect, test } from '@playwright/test'
 test('the building lists every live office', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.live')).toHaveText(/Live/)
+  // The four made-up offices (sessions other tests start may be there too: they run alongside).
   const rows = page.locator('.office-row')
-  await expect(rows).toHaveCount(4)
-  await expect(rows.filter({ hasText: 'shop' })).toHaveCount(1)
+  for (const project of ['shop', 'blog', 'api', 'mobile'])
+    await expect(rows.locator('.who', { hasText: new RegExp(`^${project}`) })).toHaveCount(1)
   await expect(rows.filter({ hasText: 'mobile' })).toContainText('codex')
   await expect(page.locator('.world canvas')).toBeVisible()
   await page.screenshot({ path: 'test-results/building.png' })
@@ -33,9 +34,13 @@ test('an office shows its manager, staff and interns, with details on click', as
 
 test('the "need you" counter goes to whoever is waiting', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.office-row')).toHaveCount(4)
-  // The made-up blog session's manager waits on a command it ran.
-  await page.locator('.chip-button').click()
+  await expect(page.locator('.office-row', { hasText: 'blog' })).toBeVisible()
+  // The made-up blog session's manager waits on a command it ran; the counter goes to each one
+  // waiting in turn (a session another test started may be waiting too).
+  for (let tries = 0; tries < 4 && !page.url().endsWith('#/office/session-blog'); tries++) {
+    await page.locator('.chip-button').click()
+    await page.waitForTimeout(200)
+  }
   await expect(page).toHaveURL(/#\/office\/session-blog$/)
   // Claude Code says it's waiting, and for what.
   await expect(page.locator('.details')).toContainText('Waiting for you: permission prompt')
