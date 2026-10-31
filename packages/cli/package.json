@@ -1,6 +1,6 @@
 {
   "name": "@charonova/agenthq",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A pixel-art office for your Claude Code and Codex sessions: every session an office, the main agent its manager, every subagent at a desk.",
   "keywords": [
     "claude-code",

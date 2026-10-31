@@ -14,7 +14,7 @@
 
 Every live session is an office. Its main agent is the manager, every teammate gets a desk, and the helpers they start sit beside them as interns. Working agents type at their desks, read at the bookshelf, run tests at the lab and walk over to talk to each other; idle ones get coffee, then nap on the couch.
 
-> Early (0.2), and moving fast. Works on macOS, Linux and Windows.
+> 0.4, and moving fast. Works on macOS, Linux and Windows.
 
 ## Run it
 

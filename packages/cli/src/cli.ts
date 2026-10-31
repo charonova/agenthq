@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { claudeHome, discoverAll, ignoreFrom, looksLikeClaudeHome } from '@agenthq/core'
 import type { Agent, Office } from '@agenthq/core'
 
 const args = process.argv.slice(2)
 const home = claudeHome()
+
+if (args.includes('--version') || args.includes('-v')) {
+  // The package's own version, from the package.json next to the built files.
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+  console.log(pkg.version)
+  process.exit(0)
+}
 
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`AgentHQ: a pixel-art office for your Claude Code and Codex sessions.
@@ -17,11 +25,14 @@ Usage:
 Options:
   --port <n>        serve on another port (the next free one if it's taken)
   --no-open         don't open the browser
+  --version         print the version
 
-Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder). Only reads it, unless you turn on
-answering from AgentHQ (🔔 in the page): that adds one hook to its settings.json, after saving a copy.
+Reads ${home} (set AGENTHQ_CLAUDE_HOME to read another folder) and Codex's folder (CODEX_HOME). Only
+reads them, unless you turn on answering from AgentHQ (⚙️ Settings in the page): that adds one hook to
+Claude Code's settings.json, after saving a copy. Typing into Terminal/iTerm2 tabs (macOS) is off
+until you turn it on there too; AgentHQ keeps its own settings in ~/.agenthq.
 Leaves out claude-mem's background sessions; AGENTHQ_IGNORE=frag1,frag2 leaves out more folders.
-AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it.
+AGENTHQ_JUMP=copy: going to a session only copies the command that resumes it (and typing only copies).
 Sessions you start from the page run your own Claude Code (\`claude\` on your PATH, or AGENTHQ_CLAUDE_PATH).`)
   process.exit(0)
 }
