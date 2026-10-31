@@ -14,7 +14,7 @@ function transcript(path, lines, now, secondsAgo) {
 
 const usage = { input_tokens: 12, cache_creation_input_tokens: 900, cache_read_input_tokens: 48_000, output_tokens: 300 }
 
-function tool(cwd, now, ago, name, input) {
+export function tool(cwd, now, ago, name, input) {
   return line({
     type: 'assistant',
     cwd,
@@ -28,9 +28,9 @@ function tool(cwd, now, ago, name, input) {
     },
   })
 }
-const prompt = (cwd, now, ago, text) =>
+export const prompt = (cwd, now, ago, text) =>
   line({ type: 'user', cwd, timestamp: iso(now, ago), message: { role: 'user', content: text } })
-const done = (cwd, now, ago) =>
+export const done = (cwd, now, ago) =>
   line({
     type: 'assistant',
     cwd,

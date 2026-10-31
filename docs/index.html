@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentHQ: a pixel-art office for your Claude Code sessions</title>
+    <meta
+      name="description"
+      content="Every live Claude Code session becomes an office: the main agent is the manager, teammates work at desks, their helpers sit beside them. Watch them type, test, talk and take coffee breaks."
+    />
+    <meta property="og:title" content="AgentHQ" />
+    <meta property="og:description" content="A pixel-art office for your Claude Code sessions." />
+    <meta property="og:image" content="https://raw.githubusercontent.com/charonova/agenthq/main/docs/media/office.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #15161d;
+        --panel: #1f212b;
+        --panel-2: #272a36;
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #eef0f6;
+        --muted: #9aa0b2;
+        --faint: #666c80;
+        --wood: #c99a62;
+        --green: #4cd97b;
+        --yellow: #ffd479;
+        --pink: #d96fa8;
+        --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.6 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--yellow);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      img {
+        max-width: 100%;
+        display: block;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.88em;
+        background: rgba(255, 255, 255, 0.07);
+        padding: 0.12em 0.4em;
+        border-radius: 6px;
+      }
+      .wrap {
+        width: min(1080px, 100% - 40px);
+        margin: 0 auto;
+      }
+      .pixel {
+        font-family: 'Press Start 2P', var(--mono);
+        letter-spacing: 0;
+      }
+
+      nav {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: rgba(21, 22, 29, 0.85);
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--line);
+      }
+      nav .wrap {
+        display: flex;
+        align-items: center;
+        height: 58px;
+        gap: 20px;
+      }
+      nav .brand {
+        font-size: 13px;
+        color: var(--text);
+      }
+      nav .links {
+        margin-left: auto;
+        display: flex;
+        gap: 20px;
+        font-size: 14px;
+      }
+      nav .links a {
+        color: var(--muted);
+      }
+
+      header {
+        text-align: center;
+        padding: 70px 0 30px;
+        position: relative;
+        overflow: hidden;
+      }
+      header::before {
+        content: '';
+        position: absolute;
+        inset: -150px 0 auto;
+        height: 520px;
+        z-index: -1;
+        background:
+          radial-gradient(520px 260px at 50% 35%, rgba(217, 111, 168, 0.18), transparent 70%),
+          radial-gradient(420px 220px at 30% 40%, rgba(201, 154, 98, 0.14), transparent 70%);
+      }
+      h1 {
+        font-size: clamp(22px, 4.2vw, 40px);
+        line-height: 1.45;
+        margin: 0 0 22px;
+      }
+      h1 .accent {
+        color: var(--yellow);
+      }
+      .lead {
+        color: var(--muted);
+        max-width: 680px;
+        margin: 0 auto 28px;
+        font-size: clamp(16px, 2vw, 19px);
+      }
+      .cta {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 15px;
+        background: var(--panel-2);
+        color: var(--text);
+        border: 1px solid var(--line);
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+      }
+      .btn:hover {
+        text-decoration: none;
+        transform: translateY(1px);
+        box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+      }
+      .btn.primary {
+        background: var(--wood);
+        color: #2a1c0e;
+        border-color: #ad7d4b;
+      }
+      .meta {
+        color: var(--faint);
+        font-size: 13px;
+        margin-top: 14px;
+      }
+      .hero-shot {
+        margin: 46px auto 0;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+        max-width: 960px;
+        image-rendering: pixelated;
+      }
+
+      section {
+        padding: 64px 0;
+      }
+      .eyebrow {
+        font-size: 10px;
+        color: var(--pink);
+      }
+      h2 {
+        font-size: clamp(26px, 3.6vw, 36px);
+        letter-spacing: -0.02em;
+        margin: 14px 0 12px;
+      }
+      .sub {
+        color: var(--muted);
+        max-width: 680px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 30px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 22px;
+      }
+      .card .icon {
+        font-size: 26px;
+      }
+      .card h3 {
+        margin: 10px 0 6px;
+        font-size: 17px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .moves {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px 26px;
+        margin-top: 26px;
+      }
+      .move {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+        padding: 10px 0;
+        border-bottom: 1px dashed var(--line);
+      }
+      .move b {
+        min-width: 170px;
+      }
+      .move span {
+        color: var(--muted);
+      }
+
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 28px;
+      }
+      .pair figure {
+        margin: 0;
+      }
+      .pair img {
+        border-radius: 12px;
+        border: 1px solid var(--line);
+      }
+      .pair figcaption {
+        text-align: center;
+        color: var(--faint);
+        font-size: 13px;
+        margin-top: 8px;
+      }
+
+      .term {
+        background: #000;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        font-family: var(--mono);
+        font-size: 14px;
+        color: #e6e6ee;
+        overflow-x: auto;
+        white-space: pre;
+        margin-top: 22px;
+      }
+      .term .c {
+        color: var(--faint);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 22px;
+        font-size: 15px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 34px 0 48px;
+        color: var(--faint);
+        font-size: 14px;
+      }
+      footer .wrap {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 14px;
+      }
+
+      @media (max-width: 820px) {
+        .grid,
+        .moves,
+        .pair {
+          grid-template-columns: 1fr;
+        }
+        .move b {
+          min-width: 130px;
+        }
+        nav .links a.optional {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <div class="wrap">
+        <a class="brand pixel" href="./">🏢 AgentHQ</a>
+        <div class="links">
+          <a class="optional" href="#office">The office</a>
+          <a href="#run">Run it</a>
+          <a href="https://github.com/charonova/agenthq">GitHub</a>
+        </div>
+      </div>
+    </nav>
+
+    <header>
+      <div class="wrap">
+        <h1 class="pixel">Your agents,<br /><span class="accent">at work.</span></h1>
+        <p class="lead">
+          AgentHQ turns every live Claude Code session into a pixel-art office. The main agent is the manager, every teammate gets
+          a desk, and the helpers they start sit beside them. Watch them type, test, talk to each other and take coffee breaks,
+          live.
+        </p>
+        <div class="cta">
+          <a class="btn primary" href="#run">▶ Run it</a>
+          <a class="btn" href="https://github.com/charonova/agenthq">★ Star on GitHub</a>
+        </div>
+        <div class="meta">Free and open source · macOS, Linux and Windows · runs on your machine only</div>
+        <img
+          class="hero-shot"
+          src="media/office.gif"
+          alt="The building of live sessions, then one office: teammates walk from the couch to their desks, the bookshelf, the lab, and into the manager's glass office"
+        />
+      </div>
+    </header>
+
+    <section id="office">
+      <div class="wrap">
+        <div class="eyebrow pixel">The office</div>
+        <h2>One session, one office. One agent, one desk.</h2>
+        <p class="sub">
+          A session with an agent team can have dozens of agents. AgentHQ shows who they are, what each is doing right now, and
+          who is waiting for you.
+        </p>
+        <div class="grid">
+          <div class="card">
+            <div class="icon">👔</div>
+            <h3>The manager</h3>
+            <p>The session's main agent works from a glass office, and watches the team while they work.</p>
+          </div>
+          <div class="card">
+            <div class="icon">🧑‍💻</div>
+            <h3>The staff</h3>
+            <p>Every teammate gets a desk with its name, in its team colour. They walk over to each other's desks to talk.</p>
+          </div>
+          <div class="card">
+            <div class="icon">🧑‍🎓</div>
+            <h3>The interns</h3>
+            <p>The helpers a teammate starts sit at the table beside it, and go home when they're done.</p>
+          </div>
+        </div>
+        <div class="moves">
+          <div class="move"><b>✏️ Writing code</b><span>types at the desk</span></div>
+          <div class="move"><b>📖 Reading</b><span>goes to the bookshelf</span></div>
+          <div class="move"><b>⚡ Running commands</b><span>at the server rack</span></div>
+          <div class="move"><b>🧪 Running tests</b><span>at the lab bench</span></div>
+          <div class="move"><b>🌐 On the web</b><span>by the window</span></div>
+          <div class="move"><b>💬 Messaging</b><span>walks to that teammate's desk</span></div>
+          <div class="move"><b>✋ Needs you</b><span>raises a hand</span></div>
+          <div class="move"><b>☕ Idle</b><span>coffee first, then the couch 💤</span></div>
+        </div>
+        <div class="pair">
+          <figure>
+            <img src="media/building.png" alt="The building: live sessions as offices on one map" />
+            <figcaption>The building: every live session, on one map you can pan and zoom</figcaption>
+          </figure>
+          <figure>
+            <img src="media/office.png" alt="Inside an office, with a selected agent's details" />
+            <figcaption>Click anyone for their task, tool, model, context and last words</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="run">
+      <div class="wrap">
+        <div class="eyebrow pixel">Run it</div>
+        <h2>Two minutes, from source.</h2>
+        <p class="sub">
+          You need <a href="https://nodejs.org">Node.js</a> 20 or later and <a href="https://pnpm.io">pnpm</a>. An npm package
+          (<code>npx</code>) is coming.
+        </p>
+        <div class="term">
+          <span class="c"># get it</span>
+          git clone https://github.com/charonova/agenthq.git cd agenthq pnpm install
+
+          <span class="c"># open the office at http://localhost:4747</span>
+          pnpm start
+        </div>
+        <table>
+          <tr>
+            <th>Where it looks</th>
+            <th>What it learns</th>
+          </tr>
+          <tr>
+            <td><code>~/.claude/projects/*/*.jsonl</code></td>
+            <td>Live sessions, each one an office, and its manager</td>
+          </tr>
+          <tr>
+            <td><code>&lt;session&gt;/subagents/*.jsonl</code> and <code>.meta.json</code></td>
+            <td>Teammates (name, colour, model) and the helpers they start</td>
+          </tr>
+          <tr>
+            <td>The last lines of each transcript</td>
+            <td>What each agent is doing now, and for how long</td>
+          </tr>
+        </table>
+        <p class="sub" style="margin-top: 22px">
+          <b>Private by design.</b> AgentHQ only reads what Claude Code writes on your computer, never changes it, and serves the
+          office on 127.0.0.1 only. Nothing leaves your machine.
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <span>AgentHQ · MIT © 2026 charonova</span>
+        <span
+          ><a href="https://github.com/charonova/agenthq">GitHub</a> ·
+          <a href="https://github.com/charonova/agenthq/issues">Issues</a></span
+        >
+        <span>Not affiliated with Anthropic.</span>
+      </div>
+    </footer>
+  </body>
+</html>
