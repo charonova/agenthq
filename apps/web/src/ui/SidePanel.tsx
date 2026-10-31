@@ -1,5 +1,6 @@
 import type { Agent, Office } from '@agenthq/core'
 import { activityIcon, agoText, describe, stateEmoji } from '../scene/plan'
+import { useAsks } from '../state/asks'
 import { useChat } from '../state/conversation'
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
@@ -103,6 +104,7 @@ function OfficePanel({ office }: { office: Office }) {
 
 function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: string; status?: string | null; now: number }) {
   const showChat = useChat((state) => state.show)
+  const asked = useAsks((state) => state.asks.filter((ask) => ask.sessionId === sessionId && ask.agentId === agent.id).length)
   const items: [string, string | null][] = [
     ['Doing', describe(agent, now)],
     ['Task', agent.task],
@@ -129,6 +131,11 @@ function Details({ agent, sessionId, status, now }: { agent: Agent; sessionId: s
           Go to ↗
         </button>
       </div>
+      {asked > 0 && (
+        <button className="asked" onClick={() => showChat(sessionId, agent.id)}>
+          ✋ {asked === 1 ? 'It asks you something' : `It asks you ${asked} things`} · <b>Answer</b>
+        </button>
+      )}
       <dl>
         {items
           .filter(([, value]) => value)

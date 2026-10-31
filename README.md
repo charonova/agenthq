@@ -51,14 +51,15 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 - **Where they go**: writing code → their desk · reading → the bookshelf · commands → the server rack · tests → the lab · web → the window · plans → the whiteboard · messaging a teammate → that teammate's desk · waiting for you → a raised hand · idle → coffee, then the couch. They walk around the furniture.
 - **It tells you when someone needs you**: a desktop notification and a chime when an agent starts waiting for you (🔔 in the header); click it to jump there. The tab title shows how many are waiting, and the **✋ need you** counter goes to each in turn. Optionally, also when a session finishes.
 - **A timeline per agent**: its latest tool calls, with times, under its details.
-- **💬 The whole conversation**: open anyone's conversation, manager, teammate or helper, Claude Code or Codex: your prompts, its replies, every tool call with its input and output, messages between teammates. It follows along live, loads older messages as you scroll up (even in multi-gigabyte sessions), and you can search it. Read only for now: answering from AgentHQ is next.
+- **💬 The whole conversation**: open anyone's conversation, manager, teammate or helper, Claude Code or Codex: your prompts, its replies, every tool call with its input and output, messages between teammates. It follows along live, loads older messages as you scroll up (even in multi-gigabyte sessions), and you can search it.
+- **✋ Answer from AgentHQ** (Claude Code, opt-in): permission prompts and questions show up in the agent's conversation. Allow once, pick one of Claude Code's own "always allow" choices, deny with a note on what to do instead, or choose the answers to its questions (or type your own). The terminal still shows the prompt and can answer it too; whichever answers first wins. Turn it on under 🔔: it adds one `PermissionRequest` hook to `~/.claude/settings.json` (a copy of the file is saved first, your other hooks stay), and it does nothing while AgentHQ is closed. Turning it off removes it.
 - **Go straight to a session**: double-click anyone (or **Go to ↗** in their details) and its window comes forward: the exact tab in Terminal or iTerm2, the project's window in VS Code, Cursor or Windsurf, or the app it runs in (macOS). Elsewhere, or when it can't, the command that resumes the session is copied for you.
 - **Codex too**: each Codex thread is an office, with its sub-agents (like the guardian) as staff, named as in Codex's app.
 - **Day and night** follow your clock.
 
 ## How it works
 
-AgentHQ only **reads** what Claude Code writes in `~/.claude`; it never runs or changes Claude Code, and nothing leaves your computer (the page is served on 127.0.0.1 only).
+AgentHQ only **reads** what Claude Code writes in `~/.claude`, and nothing leaves your computer (the page is served on 127.0.0.1 only). The one exception is answering from AgentHQ, when you turn it on: then it adds its hook to `~/.claude/settings.json`, and keeps its own files in `~/.agenthq` (the hook, the running server's address with a secret made fresh each start, and a log of what you answered, names and choices only).
 
 | Office               | From                                                                                                                              |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |

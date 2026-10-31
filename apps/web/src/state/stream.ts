@@ -1,5 +1,6 @@
-import type { Office } from '@agenthq/core'
+import type { Ask, Office } from '@agenthq/core'
 import { useEffect } from 'react'
+import { useAsks } from './asks'
 import { useOffices } from './store'
 
 /**
@@ -17,11 +18,16 @@ export function useOfficeStream() {
         .then((response) => response.text())
         .then(receive)
         .catch(() => setConnection('offline'))
+      fetch('/api/asks', { headers: { 'X-AgentHQ': '1' }, signal: controller.signal })
+        .then((response) => response.json() as Promise<{ enabled: boolean; asks: Ask[] }>)
+        .then(useAsks.getState().receive)
+        .catch(() => undefined)
       return () => controller.abort()
     }
 
     const events = new EventSource('/events')
     events.addEventListener('offices', (event) => receive((event as MessageEvent<string>).data))
+    events.addEventListener('asks', (event) => useAsks.getState().receive(JSON.parse((event as MessageEvent<string>).data)))
     events.onerror = () => setConnection('offline')
     return () => events.close()
   }, [])

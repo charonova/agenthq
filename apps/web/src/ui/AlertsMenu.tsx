@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { chime } from '../state/sound'
+import { setAnswering, useAsks } from '../state/asks'
 import { useSettings } from '../state/store'
 import { allowNotifications } from '../state/useAlerts'
 
@@ -9,6 +10,8 @@ export function AlertsMenu() {
   const [blocked, setBlocked] = useState(false)
   const menu = useRef<HTMLDivElement>(null)
   const { notify, sound, finished, set } = useSettings()
+  const enabled = useAsks((state) => state.enabled)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -56,6 +59,50 @@ export function AlertsMenu() {
           <button className="test" onClick={() => chime('waiting')}>
             ▶ Test sound
           </button>
+          <div className="answering">
+            <p>
+              <b>Answer from AgentHQ</b> {enabled ? <span className="on">On</span> : <span>Off</span>}
+            </p>
+            {enabled ? (
+              <>
+                <small>
+                  Permission prompts and questions from Claude Code show up in the conversation. The terminal can still answer.
+                </small>
+                <button className="btn" onClick={() => void setAnswering(false)}>
+                  Turn off (removes the hook)
+                </button>
+              </>
+            ) : confirming ? (
+              <>
+                <small>
+                  This adds one hook to <code>~/.claude/settings.json</code> (a copy is saved first). It hands Claude Code’s
+                  permission prompts and questions to AgentHQ, and does nothing while AgentHQ is closed. Your other hooks stay as
+                  they are.
+                </small>
+                <div className="row-buttons">
+                  <button
+                    className="btn primary"
+                    onClick={() => {
+                      setConfirming(false)
+                      void setAnswering(true)
+                    }}
+                  >
+                    Turn on
+                  </button>
+                  <button className="btn" onClick={() => setConfirming(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <small>Answer permission prompts and questions here, without going to the terminal.</small>
+                <button className="btn" onClick={() => setConfirming(true)}>
+                  Turn on…
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -108,3 +108,38 @@ export interface JumpResult {
   /** For `copy`: the command that resumes the session. */
   command?: string
 }
+
+/**
+ * Something an agent asks you: a permission prompt, or questions to choose answers for. Claude
+ * Code hands it to AgentHQ's hook, which waits for your answer here; the terminal can still
+ * answer it, and then it goes away.
+ */
+export interface Ask {
+  id: string
+  sessionId: string
+  /** Who asks: its agent in the office (the manager when it can't tell). */
+  agentId: string
+  kind: 'permission' | 'question'
+  tool: Tool
+  /** What it wants to run or change, for reading (cut when long). */
+  input: string | null
+  /** For a question: what it asks, with its choices. */
+  questions: AskQuestion[]
+  /** Ways to allow it from now on, as Claude Code offers them ("Always allow npm test…"). */
+  always: string[]
+  at: number
+}
+
+export interface AskQuestion {
+  question: string
+  header: string | null
+  multiSelect: boolean
+  options: { label: string; description: string | null }[]
+}
+
+/** Your answer: allow once, one of its "always" choices (by index), deny with a reason, or your answers to its questions. */
+export type AskAnswer =
+  | { id: string; choice: 'once' }
+  | { id: string; choice: 'always'; index: number }
+  | { id: string; choice: 'deny'; message?: string }
+  | { id: string; choice: 'answers'; answers: Record<string, string> }

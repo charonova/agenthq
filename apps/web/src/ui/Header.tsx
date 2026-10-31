@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { goToAgent } from '../state/asks'
 import { everyone, totals, useOffices } from '../state/store'
 import { AlertsMenu } from './AlertsMenu'
 
@@ -19,7 +20,7 @@ export function Header() {
     )
     if (waiting.length === 0) return
     const [officeId, agentId] = waiting[next.current++ % waiting.length]!
-    useOffices.getState().jump(officeId, agentId)
+    goToAgent(officeId, agentId)
   }
   return (
     <header className="bar">

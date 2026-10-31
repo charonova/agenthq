@@ -1,9 +1,11 @@
 import type { Agent, ConversationPage, Message, Office } from '@agenthq/core'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { activityIcon, stateEmoji } from '../scene/plan'
+import { useAsks } from '../state/asks'
 import { addPage, emptyLoaded, fetchPage, matches, useChat, type Loaded } from '../state/conversation'
 import { goToSession } from '../state/jump'
 import { everyone, useOffices } from '../state/store'
+import { AskCard } from './AskCard'
 import { Markdown } from './Markdown'
 
 /** The open conversation, over the office. It closes when its agent leaves. */
@@ -132,6 +134,9 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
     if (element.scrollTop < 80 && status === 'ready' && !query) void loadOlder()
   }
 
+  const enabled = useAsks((state) => state.enabled)
+  const allAsks = useAsks((state) => state.asks)
+  const asks = allAsks.filter((ask) => ask.sessionId === office.sessionId && ask.agentId === agent.id)
   const shown = query ? loaded.messages.filter((message) => matches(message, query)) : loaded.messages
   const name = nameOf(agent, office)
 
@@ -183,7 +188,20 @@ function Chat({ office, agent }: { office: Office; agent: Agent }) {
           <p className="chat-note">{query ? 'Nothing found in what’s loaded.' : 'Nothing said yet.'}</p>
         )}
       </div>
-      <footer className="chat-foot">Read only for now: answer it in its session with “Go to session”.</footer>
+      {asks.length > 0 && (
+        <div className="asks">
+          {asks.map((ask) => (
+            <AskCard key={ask.id} ask={ask} />
+          ))}
+        </div>
+      )}
+      <footer className="chat-foot">
+        {office.kind === 'codex'
+          ? 'Answer Codex in its session (“Go to session”).'
+          : enabled
+            ? 'Its permission prompts and questions show up here; the terminal can still answer them.'
+            : 'To answer its prompts here, turn on “Answer from AgentHQ” under 🔔. Or answer in its session.'}
+      </footer>
     </section>
   )
 }

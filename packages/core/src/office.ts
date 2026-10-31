@@ -133,6 +133,11 @@ interface Candidate {
  */
 const candidateCache = new Map<string, { at: number; list: Candidate[] }>()
 
+/** Looks for new sessions on the next scan instead of within 30 s (one just asked something). */
+export function forgetSessions(home: string): void {
+  candidateCache.delete(home)
+}
+
 function candidates(home: string, now: number): Candidate[] {
   const cached = candidateCache.get(home)
   if (cached && now - cached.at < 30_000 && now >= cached.at) return cached.list

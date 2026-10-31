@@ -1,4 +1,12 @@
-export { claudeHome, defaultIgnore, discoverOffices, ignoreFrom, looksLikeClaudeHome, type DiscoverOptions } from './office.js'
+export {
+  claudeHome,
+  defaultIgnore,
+  discoverOffices,
+  forgetSessions,
+  ignoreFrom,
+  looksLikeClaudeHome,
+  type DiscoverOptions,
+} from './office.js'
 export { applyStatus, stateOf, timing, type StateInput } from './state.js'
 export { HISTORY, describeTool, readHeadLines, readTail, readTailLines } from './tail.js'
 export type * from './types.js'

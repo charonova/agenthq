@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { detectAlerts, titleFor, type Alert } from './alerts'
 import { chime } from './sound'
 import { useOffices, useSettings } from './store'
+import { goToAgent } from './asks'
 
 /** Rings, notifies and updates the tab title as agents start waiting for you. */
 export function useAlerts() {
@@ -28,7 +29,7 @@ function notify(alert: Alert) {
   const notification = new Notification(alert.title, { body: alert.body, tag: `${alert.officeId}/${alert.agentId}` })
   notification.onclick = () => {
     window.focus()
-    useOffices.getState().jump(alert.officeId, alert.agentId)
+    goToAgent(alert.officeId, alert.agentId)
     notification.close()
   }
 }

@@ -1,9 +1,20 @@
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { watch, type FSWatcher } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { codexHome, discoverCodexOffices, discoverOffices, readConversation, type Office } from '@agenthq/core'
+import {
+  codexHome,
+  discoverCodexOffices,
+  discoverOffices,
+  forgetSessions,
+  readConversation,
+  type AskAnswer,
+  type Office,
+} from '@agenthq/core'
+import { Asks, type HookInput } from './asks.js'
+import { answeringEnabled, setAnswering, stateDir, writeHookScript } from './hook.js'
 import { jumpTo } from './jump.js'
 
 export interface ServerOptions {
@@ -34,6 +45,19 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   const clients = new Set<ServerResponse>()
   let latest = ''
   let offices: Office[] = []
+  // A secret for this run: only the hook (which reads it from AgentHQ's folder) can hand prompts in.
+  const token = randomBytes(32).toString('hex')
+  let enabled = answeringEnabled(home)
+  // Keep the installed hook up to date with this version.
+  if (enabled) writeHookScript()
+  let latestAsks = ''
+  const asks = new Asks(() => sendAsks())
+  const sendAsks = (force = false) => {
+    const payload = JSON.stringify({ enabled, asks: asks.list() })
+    if (payload === latestAsks && !force) return
+    latestAsks = payload
+    for (const client of clients) client.write(`event: asks\ndata: ${payload}\n\n`)
+  }
 
   const scan = () => {
     try {
@@ -45,6 +69,10 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       console.error('Couldn’t read the sessions:', error)
       return
     }
+    // Prompts the terminal answered go away; the settings may have changed by hand.
+    enabled = answeringEnabled(home)
+    asks.update(offices)
+    sendAsks()
     // States are sent as they are now; only real changes go out.
     const payload = JSON.stringify(offices)
     if (payload === latest) return
@@ -80,7 +108,43 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
       response.write('retry: 2000\n\n')
       clients.add(response)
       send(response, latest || '[]')
+      response.write(`event: asks\ndata: ${latestAsks || JSON.stringify({ enabled, asks: [] })}\n\n`)
       request.on('close', () => clients.delete(response))
+      return
+    }
+    if (url.pathname === '/api/hook') {
+      await handleHook(request, response, token, asks, (sessionId) => {
+        // A session too new to be in the office yet: look for it now.
+        if (!offices.some((office) => office.sessionId === sessionId)) {
+          forgetSessions(home)
+          soon()
+        }
+      })
+      return
+    }
+    if (url.pathname === '/api/asks') {
+      if (!fromOwnPage(request)) return void response.writeHead(403).end()
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+      response.end(JSON.stringify({ enabled, asks: asks.list() }))
+      return
+    }
+    if (url.pathname === '/api/answer') {
+      await handleAnswer(request, response, asks)
+      return
+    }
+    if (url.pathname === '/api/answering') {
+      if (request.method !== 'POST' || !fromOwnPage(request)) return void json(response, 403, { error: 'Not allowed' })
+      try {
+        const { enable } = JSON.parse(await readBody(request)) as { enable?: unknown }
+        if (typeof enable !== 'boolean') return void json(response, 400, { error: 'Expected {"enable": true|false}' })
+        const result = setAnswering(home, enable)
+        enabled = result.enabled
+        log({ answering: enabled, backup: result.backup })
+        sendAsks(true)
+        json(response, 200, result)
+      } catch (error) {
+        json(response, 500, { error: `Claude Code’s settings weren’t changed: ${(error as Error).message}` })
+      }
       return
     }
     if (url.pathname === '/api/jump') {
@@ -112,6 +176,14 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
   })
 
   const actualPort = await listen(server, port)
+  // Where the hook finds this server, readable by you only.
+  const serverFile = join(stateDir(), 'server.json')
+  try {
+    mkdirSync(stateDir(), { recursive: true, mode: 0o700 })
+    writeFileSync(serverFile, JSON.stringify({ port: actualPort, token, pid: process.pid }), { mode: 0o600 })
+  } catch (error) {
+    console.error('Couldn’t write AgentHQ’s server file; answering from AgentHQ won’t work:', error)
+  }
   // Keep the connection alive through proxies and sleeping laptops.
   const heartbeat = setInterval(() => {
     for (const client of clients) client.write(': ping\n\n')
@@ -122,6 +194,13 @@ export async function startServer({ home, port, ignore }: ServerOptions): Promis
     close: () => {
       clearInterval(ticker)
       clearInterval(heartbeat)
+      asks.clear()
+      try {
+        // Only this run's file: another AgentHQ may have started since.
+        if ((JSON.parse(readFileSync(serverFile, 'utf8')) as { pid?: number }).pid === process.pid) rmSync(serverFile)
+      } catch {
+        // Already gone.
+      }
       watcher?.close()
       for (const client of clients) client.end()
       server.close()
@@ -174,10 +253,78 @@ async function handleJump(request: IncomingMessage, response: ServerResponse, of
   reply(200, await jumpTo(home, { sessionId: office.sessionId, cwd: office.cwd, kind: office.kind }))
 }
 
+function json(response: ServerResponse, status: number, body: object) {
+  response.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+  response.end(JSON.stringify(body))
+}
+
+/** What was answered from AgentHQ, kept in AgentHQ's folder (names and choices only, never inputs). */
+function log(entry: object) {
+  try {
+    appendFileSync(join(stateDir(), 'answers.log'), JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n', {
+      mode: 0o600,
+    })
+  } catch {
+    // Logging never stops an answer.
+  }
+}
+
+const localHost = (request: IncomingMessage) =>
+  ['localhost', '127.0.0.1', '[::1]'].includes((request.headers.host ?? '').replace(/:\d+$/, ''))
+
+/**
+ * `POST /api/hook`: a prompt from the hook, held open until it's answered. Only with this
+ * run's secret, which the hook reads from AgentHQ's folder; the answer goes back as the reply.
+ */
+async function handleHook(
+  request: IncomingMessage,
+  response: ServerResponse,
+  token: string,
+  asks: Asks,
+  arrived: (sessionId: string) => void,
+) {
+  const given = Buffer.from((request.headers.authorization ?? '').replace(/^Bearer /, ''))
+  const expected = Buffer.from(token)
+  if (request.method !== 'POST' || !localHost(request) || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+    return json(response, 403, { error: 'Not allowed' })
+  }
+  let input: HookInput & { hook_event_name?: string }
+  try {
+    input = JSON.parse(await readBody(request, 2 * 1024 * 1024)) as HookInput & { hook_event_name?: string }
+  } catch {
+    return json(response, 400, { error: 'Expected the hook’s JSON' })
+  }
+  if (input.hook_event_name !== 'PermissionRequest') return void response.writeHead(204).end()
+  arrived(String(input.session_id ?? ''))
+  const decision = await asks.add(input, (drop) =>
+    response.on('close', () => {
+      // The hook gave up (its timeout): nothing to answer anymore.
+      if (!response.writableEnded) drop()
+    }),
+  )
+  if (response.destroyed) return
+  if (decision) json(response, 200, { decision })
+  else response.writeHead(204).end()
+}
+
+/** `POST /api/answer`: your answer to a prompt, from the office's own page. */
+async function handleAnswer(request: IncomingMessage, response: ServerResponse, asks: Asks) {
+  if (request.method !== 'POST' || !fromOwnPage(request)) return json(response, 403, { error: 'Not allowed' })
+  let answer: AskAnswer
+  try {
+    answer = JSON.parse(await readBody(request, 64 * 1024)) as AskAnswer
+  } catch {
+    return json(response, 400, { error: 'Expected an answer' })
+  }
+  const result = asks.answer(answer)
+  if (!result.ok) return json(response, 409, { error: result.error })
+  log({ session: result.ask.sessionId, tool: result.ask.tool.name, choice: answer.choice })
+  json(response, 200, { ok: true })
+}
+
 /** Only the office's own page: the `X-AgentHQ` header (needs a CORS preflight elsewhere) to a localhost `Host` (no DNS rebinding). */
 function fromOwnPage(request: IncomingMessage): boolean {
-  const host = (request.headers.host ?? '').replace(/:\d+$/, '')
-  return request.headers['x-agenthq'] === '1' && ['localhost', '127.0.0.1', '[::1]'].includes(host)
+  return request.headers['x-agenthq'] === '1' && localHost(request)
 }
 
 /**
