@@ -62,7 +62,7 @@ The pictures come from made-up sessions (`pnpm media`); AgentHQ shows your own.
 
 ## How it works
 
-AgentHQ only **reads** what Claude Code writes in `~/.claude`, and nothing leaves your computer (the page is served on 127.0.0.1 only). Two exceptions, both your choice: sessions you start or resume from the page run your own `claude` (found on your PATH, or set `AGENTHQ_CLAUDE_PATH`) and stop when AgentHQ closes; and answering from AgentHQ, when you turn it on: then it adds its hook to `~/.claude/settings.json`, and keeps its own files in `~/.agenthq` (its settings, the hook, the running server's address with a secret made fresh each start, and a log of what you answered, names and choices only).
+AgentHQ only **reads** what Claude Code writes in `~/.claude`, and nothing leaves your computer (the page is served on 127.0.0.1 only). Two exceptions, both your choice: sessions you start or resume from the page run your own `claude` (found on your PATH, including npm's `claude.cmd` on Windows, or set `AGENTHQ_CLAUDE_PATH`) and stop when AgentHQ closes; and answering from AgentHQ, when you turn it on: then it adds its hook to `~/.claude/settings.json`, and keeps its own files in `~/.agenthq` (its settings, the hook, the running server's address with a secret made fresh each start, and a log of what you answered, names and choices only).
 
 | Office               | From                                                                                                                              |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |

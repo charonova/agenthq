@@ -1,12 +1,12 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Draft, Office } from '@agenthq/core'
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { Asks } from '../src/asks'
-import { findClaude, nextDraft, Sessions } from '../src/sessions'
+import { findClaude, nextDraft, Sessions, shimTarget } from '../src/sessions'
 
 // The stand-in for the Agent SDK that the browser tests use: no real Claude Code runs.
 const agent = pathToFileURL(join(import.meta.dirname, '../../../e2e/fake-agent.mjs')).href
@@ -84,12 +84,58 @@ describe('sessions AgentHQ runs', () => {
     await expect(sessions.start({ cwd: project, prompt: 'hi', model: 'gpt' as never })).rejects.toThrow('Unknown model')
   })
 
+  it('finds an npm install on Windows through its claude.cmd, and runs its cli.js', () => {
+    const bin = join(project, 'npm')
+    const cli = join(bin, 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js')
+    mkdirSync(dirname(cli), { recursive: true })
+    writeFileSync(cli, '')
+    writeFileSync(join(bin, 'claude.cmd'), shim)
+    const path = process.env.PATH
+    process.env.PATH = bin
+    try {
+      expect(findClaude('win32')).toBe(realpathSync(cli))
+    } finally {
+      process.env.PATH = path
+    }
+  })
+
   it('finds Claude Code where AGENTHQ_CLAUDE_PATH says', () => {
     const fake = join(project, 'claude')
     writeFileSync(fake, '')
     process.env.AGENTHQ_CLAUDE_PATH = fake
     expect(findClaude()).toContain('claude')
     delete process.env.AGENTHQ_CLAUDE_PATH
+  })
+})
+
+// What npm writes for a package's command on Windows (cmd-shim), with the package's script.
+const shim = [
+  '@ECHO off',
+  'GOTO start',
+  ':find_dp0',
+  'SET dp0=%~dp0',
+  'EXIT /b',
+  ':start',
+  'SETLOCAL',
+  'CALL :find_dp0',
+  '',
+  'IF EXIST "%dp0%\\node.exe" (',
+  '  SET "_prog=%dp0%\\node.exe"',
+  ') ELSE (',
+  '  SET "_prog=node"',
+  '  SET PATHEXT=%PATHEXT:;.JS;=;%',
+  ')',
+  '',
+  'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\@anthropic-ai\\claude-code\\cli.js" %*',
+].join('\r\n')
+
+describe('npm’s claude.cmd on Windows', () => {
+  it('names the script it runs, not node', () => {
+    expect(shimTarget(shim, 'npm')).toBe(join('npm', 'node_modules', '@anthropic-ai', 'claude-code', 'cli.js'))
+    expect(shimTarget('"%~dp0\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe" %*', 'npm')).toBe(
+      join('npm', 'node_modules', '@anthropic-ai', 'claude-code', 'bin', 'claude.exe'),
+    )
+    expect(shimTarget('@ECHO off\r\nnode something', 'npm')).toBeNull()
   })
 })
 

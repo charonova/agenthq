@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { existsSync, realpathSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { delimiter, isAbsolute, join } from 'node:path'
+import { delimiter, dirname, isAbsolute, join } from 'node:path'
 import type { Draft, Managed } from '@agenthq/core'
 import type { Query, SDKMessage, SDKUserMessage, query as sdkQuery } from '@anthropic-ai/claude-agent-sdk'
 import type { Asks, Decision } from './asks.js'
@@ -30,9 +30,32 @@ interface Running {
   draft: Draft | null
 }
 
-/** The user's Claude Code: `AGENTHQ_CLAUDE_PATH`, else `claude` on the PATH or where its installer puts it. */
-export function findClaude(): string | null {
-  const names = process.platform === 'win32' ? ['claude.exe'] : ['claude']
+/**
+ * What an npm shim on Windows (`claude.cmd`) runs: the script or program it names next to
+ * itself (`"%dp0%\node_modules\@anthropic-ai\claude-code\cli.js"`), as a path in `dir`.
+ */
+export function shimTarget(text: string, dir: string): string | null {
+  const named = [...text.matchAll(/"%~?dp0%?\\?([^"%]+\.(?:js|mjs|cjs|exe))"/gi)].map((match) => match[1]!)
+  const target = named.find((name) => !/(^|\\)node\.exe$/i.test(name))
+  return target ? join(dir, ...target.split(/[\\/]/).filter(Boolean)) : null
+}
+
+/** A candidate as the SDK can run it: a program, or (behind an npm shim) the script node runs. */
+function runnable(candidate: string): string | null {
+  if (!statSync(candidate).isFile()) return null
+  if (!/\.cmd$/i.test(candidate)) return realpathSync(candidate)
+  // A .cmd can't be run without a shell: run what it would run instead.
+  const target = shimTarget(readFileSync(candidate, 'utf8'), dirname(candidate))
+  return target && statSync(target).isFile() ? realpathSync(target) : null
+}
+
+/**
+ * The user's Claude Code: `AGENTHQ_CLAUDE_PATH`, else `claude` on the PATH or where its installer
+ * puts it. On Windows that's `claude.exe` (the installer) or npm's `claude.cmd`, whose `cli.js`
+ * then runs with node.
+ */
+export function findClaude(platform: NodeJS.Platform = process.platform): string | null {
+  const names = platform === 'win32' ? ['claude.exe', 'claude.cmd'] : ['claude']
   const dirs = [
     ...(process.env.PATH ?? '').split(delimiter).filter(Boolean),
     join(homedir(), '.local', 'bin'),
@@ -42,7 +65,8 @@ export function findClaude(): string | null {
   for (const candidate of candidates) {
     if (!candidate) continue
     try {
-      if (statSync(candidate).isFile()) return realpathSync(candidate)
+      const found = runnable(candidate)
+      if (found) return found
     } catch {
       // Not there.
     }
@@ -193,6 +217,8 @@ export class Sessions {
         cwd,
         env,
         pathToClaudeCodeExecutable: claude,
+        // An npm install is a script: node runs it (the SDK runs anything not ending in .js as a program).
+        ...(claude && /\.[cm]?js$/.test(claude) ? { executable: 'node' as const } : {}),
         // Behave as Claude Code does in a terminal: its own prompt, the user's settings and CLAUDE.md.
         systemPrompt: { type: 'preset', preset: 'claude_code' },
         settingSources: ['user', 'project', 'local'],
